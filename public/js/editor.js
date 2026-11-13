@@ -5,7 +5,12 @@
 import { state } from './state.js';
 import { readExif } from './exif.js';
 import { buildFields, enabledFieldIds, fieldSource } from './fields.js';
-import { reconstructContext, pendingFieldIds } from './reconstruct.js';
+import {
+  reconstructContext,
+  pendingFieldIds,
+  reverseGeocode,
+} from './reconstruct.js';
+import { openMapOverlay } from './map.js';
 import {
   HUD_PRESETS,
   layoutHUD,
@@ -94,6 +99,11 @@ let runToken = 0;
 let sourcePopover = null;
 let openingSlug = null;
 
+// The location overlay. mapLookupToken discards a reverse geocode that lands
+// after the pin has already moved again or another photo has been loaded.
+let mapHandle = null;
+let mapLookupToken = 0;
+
 // ---- initial render (no photo yet) ----
 state.fields = buildFields(null, state.hud);
 renderSidebar();
@@ -163,6 +173,7 @@ async function handleFile(file) {
   if (exif.width == null) exif.width = bitmap.width;
   if (exif.height == null) exif.height = bitmap.height;
 
+  closeLocationMap();
   imageBitmap = bitmap;
   runToken += 1;
   const token = runToken;
@@ -267,6 +278,88 @@ function rebuildFields() {
   state.hud.fields = enabledFieldIds(fields);
 }
 
+// ---- location map ----
+
+function openLocationMap() {
+  if (!state.image || mapHandle) return;
+
+  closeShare();
+  closeExportMenu();
+  closeSource();
+
+  const exif = state.exif || {};
+  const placeField = state.fields.find((field) => field.id === 'place');
+  mapHandle = openMapOverlay({
+    latitude: exif.latitude,
+    longitude: exif.longitude,
+    place: placeField && placeField.available ? placeField.value : null,
+    onChange: applyMapPoint,
+    onClose() {
+      mapHandle = null;
+      // Applying a point rerenders the source group, so the button that opened
+      // the overlay may be gone. Focus its replacement, not a detached node.
+      const next = els.groupSource.querySelector(
+        '.row[data-id="coordinates"] .row-map'
+      );
+      if (next) next.focus({ preventScroll: true });
+    },
+  });
+}
+
+function closeLocationMap() {
+  if (mapHandle) mapHandle.close();
+  mapHandle = null;
+}
+
+// A new pin makes any in-flight lookup for the old point stale, so those
+// results must not land after the correction. The place row is re-resolved
+// through the shared cached helper and the HUD is repainted.
+async function applyMapPoint({ latitude, longitude }) {
+  const exif = state.exif;
+  if (!state.image || !exif) return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  runToken += 1;
+  pendingIds = new Set(['place']);
+  mapLookupToken += 1;
+  const token = mapLookupToken;
+
+  exif.latitude = latitude;
+  exif.longitude = longitude;
+  if (!context) context = emptyContext();
+  context.place = null;
+  state.context = context;
+
+  rebuildFields();
+  renderGroup(
+    els.groupSource,
+    state.fields.filter((field) => field.group === 'source')
+  );
+  renderGroup(
+    els.groupDerived,
+    state.fields.filter((field) => field.group === 'derived')
+  );
+  renderCanvas();
+
+  const place = await reverseGeocode(latitude, longitude, exif.capturedAt);
+  if (token !== mapLookupToken || state.exif !== exif) return null;
+
+  pendingIds.delete('place');
+  if (!context) context = emptyContext();
+  context.place = place;
+  state.context = context;
+
+  rebuildFields();
+  renderGroup(
+    els.groupDerived,
+    state.fields.filter((field) => field.group === 'derived')
+  );
+  renderCanvas();
+
+  const field = state.fields.find((item) => item.id === 'place');
+  return field && field.available ? field.value : 'place not resolved';
+}
+
 // ---- sidebar ----
 
 function renderSidebar() {
@@ -324,6 +417,24 @@ function buildRow(field) {
       : field.reason ?? '';
 
   row.append(label, value);
+
+  // The location row carries its own action: the map is a correction surface,
+  // not a permanent panel, and it opens in picker state when the photo has no
+  // GPS at all.
+  if (field.id === 'coordinates' && state.image) {
+    const map = document.createElement('button');
+    map.type = 'button';
+    map.className = 'row-action row-map';
+    map.textContent = 'Map';
+    map.setAttribute(
+      'aria-label',
+      field.available
+        ? 'Correct the photo location on a map'
+        : 'Set the photo location on a map'
+    );
+    map.addEventListener('click', openLocationMap);
+    row.append(map);
+  }
 
   if (field.group !== 'style') {
     const provenance = fieldSource(field, state.exif);
@@ -957,6 +1068,7 @@ async function openGallery(slug) {
   openingSlug = slug;
 
   try {
+    closeLocationMap();
     const res = await fetch(`/api/galleries/${encodeURIComponent(slug)}`);
     if (!res.ok) throw new Error('Could not open that saved photo.');
     const record = await res.json();

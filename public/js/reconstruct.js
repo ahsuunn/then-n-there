@@ -69,21 +69,44 @@ export async function reconstructContext(exif, { onResult } = {}) {
 
 async function lookupPlace(exif) {
   try {
-    return await cached('place', exif, async () => {
-      const url =
-        'https://api.bigdatacloud.net/data/reverse-geocode-client' +
-        `?latitude=${exif.latitude}&longitude=${exif.longitude}` +
-        '&localityLanguage=en';
-      const data = await getJson(url);
-      const name = text(data.city) || text(data.locality);
-      const admin = text(data.principalSubdivision);
-      const country = text(data.countryName);
-      if (!name && !admin && !country) return null;
-      return { name: name || admin, admin, country };
-    });
+    return await cached('place', exif, () =>
+      fetchPlace(exif.latitude, exif.longitude)
+    );
   } catch {
     return null;
   }
+}
+
+// Reusable reverse geocode for the map overlay. It goes through the same
+// localStorage cache as the initial lookup, keyed by rounded coordinates and
+// the photo hour, so a pin dragged back over the original spot is free and
+// each new point is queried once.
+export async function reverseGeocode(latitude, longitude, capturedAt = null) {
+  const lat = num(latitude);
+  const lon = num(longitude);
+  if (lat == null || lon == null) return null;
+  try {
+    return await cached(
+      'place',
+      { latitude: lat, longitude: lon, capturedAt },
+      () => fetchPlace(lat, lon)
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function fetchPlace(latitude, longitude) {
+  const url =
+    'https://api.bigdatacloud.net/data/reverse-geocode-client' +
+    `?latitude=${latitude}&longitude=${longitude}` +
+    '&localityLanguage=en';
+  const data = await getJson(url);
+  const name = text(data.city) || text(data.locality);
+  const admin = text(data.principalSubdivision);
+  const country = text(data.countryName);
+  if (!name && !admin && !country) return null;
+  return { name: name || admin, admin, country };
 }
 
 async function lookupWeather(exif) {

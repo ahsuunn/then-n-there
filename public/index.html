@@ -10,9 +10,17 @@
       href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+    />
     <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/primitives.css" />
     <link rel="stylesheet" href="/css/editor.css" />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+    ></script>
   </head>
   <body>
     <div class="app" id="app">
@@ -112,6 +120,45 @@
       </div>
 
       <input type="file" id="fileInput" accept="image/jpeg,image/png" hidden />
+    </div>
+
+    <div class="map-overlay" id="mapOverlay" hidden>
+      <section
+        class="map-panel"
+        id="mapPanel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mapTitle"
+        aria-describedby="mapHint"
+      >
+        <header class="map-head">
+          <div class="map-head-text">
+            <h2 class="map-title" id="mapTitle">Photo location</h2>
+            <p class="map-hint" id="mapHint">
+              Drag the pin to correct where the photo was taken.
+            </p>
+          </div>
+          <button type="button" class="btn map-close" id="mapClose">Close</button>
+        </header>
+
+        <div
+          class="map-canvas"
+          id="mapCanvas"
+          aria-label="Map for correcting the photo location"
+        ></div>
+
+        <footer class="map-foot">
+          <div class="map-readout" aria-live="polite">
+            <span class="map-coords" id="mapCoords">no coordinates</span>
+            <span class="map-place" id="mapPlace">place not resolved</span>
+          </div>
+          <div class="map-actions">
+            <button type="button" class="btn" id="mapLocate">
+              Use my location
+            </button>
+          </div>
+        </footer>
+      </section>
     </div>
 
     <script type="module" src="/js/editor.js"></script>
