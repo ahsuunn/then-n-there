@@ -165,7 +165,7 @@ image_height, hud_config, context`. The last two are JSON text.
 
 | File | Lines | Responsibility |
 |---|---|---|
-| `server/index.js` | 147 | Express app, static hosting, the six routes, error mapping |
+| `server/index.js` | 165 | Express app, static hosting, the seven routes, error mapping |
 | `server/db.js` | 120 | Opens SQLite, creates `data/`, schema, queries |
 | `server/uploads.js` | 74 | Multer memory storage, 15 MB cap, magic-byte sniffing, pixel dimensions |
 | `server/slug.js` | 14 | 8-character base62 slug from `crypto.randomBytes` |
@@ -178,6 +178,7 @@ POST /api/galleries        multipart image + payload JSON → 201 record
 GET  /api/galleries        ?limit=1..50 (default 12) → newest first, trimmed
 GET  /api/galleries/:slug  full record, 404 JSON when unknown
 GET  /s/:slug              serves share.html (the client fetches the record)
+DELETE /api/galleries/:slug  removes the row and its image, 204
 GET  /api/peaks            ?lat&lon&radius → Overpass JSON, validated, cached
 GET  /uploads/*, /*        static files
 ```
@@ -318,7 +319,7 @@ save a gallery, which is acceptable here and would not be in a real service.
 ## 11. A guided first read
 
 1. `server/db.js` — the schema is the whole persistence story; read it first.
-2. `server/index.js` — six routes, each short. Note the validation order:
+2. `server/index.js` — seven routes, each short. Note the validation order:
    file present, magic bytes, payload JSON, then write.
 3. `public/js/state.js` — 39 lines, and everything else hangs off this shape.
 4. `public/js/exif.js` — how a `File` becomes the EXIF contract, including
