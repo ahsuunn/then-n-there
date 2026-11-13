@@ -20,6 +20,22 @@
         <span class="wordmark">Then <span class="wordmark-amp">&amp;</span> There</span>
         <div class="topbar-actions">
           <button type="button" class="btn" id="pickButton">Add photo</button>
+          <div class="export-control">
+            <button type="button" class="btn" id="exportButton" disabled>
+              Export
+            </button>
+            <button
+              type="button"
+              class="btn btn-caret"
+              id="exportMenuButton"
+              disabled
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-label="Export format"
+            >
+              <span class="caret" aria-hidden="true"></span>
+            </button>
+          </div>
           <button type="button" class="btn btn-primary" id="shareButton" disabled>
             Share
           </button>
@@ -81,6 +97,18 @@
           target="_blank"
           rel="noopener"
         >Open in a new tab</a>
+      </div>
+
+      <div class="popover export-menu" id="exportMenu" role="menu" hidden>
+        <p class="popover-title">Export format</p>
+        <button type="button" class="menu-item" id="exportPng" role="menuitem">
+          <span class="menu-label">PNG</span>
+          <span class="menu-note">full size, lossless</span>
+        </button>
+        <button type="button" class="menu-item" id="exportJpeg" role="menuitem">
+          <span class="menu-label">JPEG</span>
+          <span class="menu-note">full size, quality 0.92</span>
+        </button>
       </div>
 
       <input type="file" id="fileInput" accept="image/jpeg,image/png" hidden />

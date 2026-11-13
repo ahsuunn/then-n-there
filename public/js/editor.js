@@ -13,6 +13,12 @@ import {
   renderHUD,
   snapBox,
 } from './hud.js';
+import {
+  downloadBlob,
+  exportName,
+  exportSize,
+  renderToBlob,
+} from './export.js';
 import { toast, setBusy } from './ui.js';
 
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -30,6 +36,11 @@ const els = {
   app: document.getElementById('app'),
   fileInput: document.getElementById('fileInput'),
   pickButton: document.getElementById('pickButton'),
+  exportButton: document.getElementById('exportButton'),
+  exportMenuButton: document.getElementById('exportMenuButton'),
+  exportMenu: document.getElementById('exportMenu'),
+  exportPng: document.getElementById('exportPng'),
+  exportJpeg: document.getElementById('exportJpeg'),
   shareButton: document.getElementById('shareButton'),
   stage: document.getElementById('stage'),
   canvas: document.getElementById('hudCanvas'),
@@ -170,6 +181,7 @@ async function handleFile(file) {
   renderSidebar();
   renderCanvas();
   closeShare();
+  closeExportMenu();
 
   resolveContext(exif, token);
 }
@@ -262,6 +274,8 @@ function renderSidebar() {
   renderGroup(els.groupDerived, state.fields.filter((f) => f.group === 'derived'));
   renderStyleGroup();
   els.shareButton.disabled = !state.image;
+  els.exportButton.disabled = !state.image;
+  els.exportMenuButton.disabled = !state.image;
 }
 
 function renderGroup(container, fields) {
@@ -986,6 +1000,7 @@ async function openGallery(slug) {
     renderSidebar();
     renderCanvas();
     closeShare();
+    closeExportMenu();
   } catch (err) {
     toast(err.message || 'Could not open that saved photo.', 'error');
   } finally {
@@ -1052,6 +1067,69 @@ function numberIn(value, min, max, fallback) {
   return Math.min(max, Math.max(min, value));
 }
 
+// ---- export ----
+
+// One click downloads a PNG at the photo's own pixel size; the caret opens the
+// format menu, where JPEG 0.92 is the smaller option. Both paths call
+// js/export.js, which renders with the same js/hud.js as the preview.
+els.exportButton.addEventListener('click', () => exportPhoto('png'));
+els.exportMenuButton.addEventListener('click', toggleExportMenu);
+els.exportPng.addEventListener('click', () => {
+  closeExportMenu();
+  exportPhoto('png');
+});
+els.exportJpeg.addEventListener('click', () => {
+  closeExportMenu();
+  exportPhoto('jpeg');
+});
+
+let exporting = false;
+
+async function exportPhoto(format) {
+  if (!imageBitmap || exporting) return;
+  exporting = true;
+
+  const label = format === 'jpeg' ? 'JPEG' : 'PNG';
+  const { width, height } = exportSize(imageBitmap);
+  setBusy(els.exportButton, true, 'Exporting');
+  els.exportMenuButton.disabled = true;
+
+  try {
+    const blob = await renderToBlob(imageBitmap, state.fields, state.hud, {
+      format,
+    });
+    downloadBlob(blob, exportName(format));
+    toast(`${label} ${width} x ${height} downloaded`);
+  } catch {
+    toast('Could not export this photo.', 'error');
+  } finally {
+    exporting = false;
+    setBusy(els.exportButton, false);
+    els.exportMenuButton.disabled = !state.image;
+  }
+}
+
+function toggleExportMenu() {
+  if (els.exportMenuButton.disabled) return;
+  if (els.exportMenu.hidden) openExportMenu();
+  else closeExportMenu();
+}
+
+function openExportMenu() {
+  closeShare();
+  const btn = els.exportMenuButton.getBoundingClientRect();
+  els.exportMenu.style.top = `${btn.bottom + 8}px`;
+  els.exportMenu.style.right = `${window.innerWidth - btn.right}px`;
+  els.exportMenu.hidden = false;
+  els.exportMenuButton.setAttribute('aria-expanded', 'true');
+}
+
+function closeExportMenu() {
+  if (els.exportMenu.hidden) return;
+  els.exportMenu.hidden = true;
+  els.exportMenuButton.setAttribute('aria-expanded', 'false');
+}
+
 // ---- sharing ----
 
 els.shareButton.addEventListener('click', share);
@@ -1108,6 +1186,7 @@ function showShare(slug) {
   const url = new URL(`/s/${slug}`, window.location.origin).href;
   els.shareUrl.value = url;
   els.openLink.href = url;
+  closeExportMenu();
   positionPopover();
   els.sharePopover.hidden = false;
 }
@@ -1141,6 +1220,13 @@ document.addEventListener('click', (event) => {
     closeShare();
   }
   if (
+    !els.exportMenu.hidden &&
+    !els.exportMenu.contains(event.target) &&
+    !els.exportMenuButton.contains(event.target)
+  ) {
+    closeExportMenu();
+  }
+  if (
     sourcePopover &&
     !sourcePopover.contains(event.target) &&
     !event.target.closest('.row-info')
@@ -1152,6 +1238,7 @@ document.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     closeShare();
+    closeExportMenu();
     closeSource();
   }
 });
