@@ -82,7 +82,7 @@ body {
 }
 
 .sidebar {
-  width: 320px;
+  width: 340px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -194,14 +194,16 @@ body {
 .row-value {
   margin-left: auto;
   min-width: 0;
-  max-width: 56%;
+  max-width: 58%;
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   text-align: right;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .row.is-unavailable {

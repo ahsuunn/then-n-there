@@ -20,7 +20,7 @@ const UNAVAILABLE = {
   place: 'reverse geocode unavailable',
   weather: 'no archived weather for that hour',
   elevation: 'elevation lookup unavailable',
-  peaks: 'Overpass peaks unavailable',
+  peaks: 'Overpass unavailable',
   sun: 'sun position unavailable',
   moon: 'moon position unavailable',
 };
@@ -54,7 +54,7 @@ export function buildFields(exif, hud, context = null) {
         hasExposure(exif), 'no exposure data'),
       source('bearing', 'Bearing', formatBearing(exif.bearing), 'degrees',
         exif.bearing != null,
-        hasCoords(exif) ? 'camera recorded no direction' : 'no GPS in this file'),
+        hasCoords(exif) ? 'no direction recorded' : 'no GPS in this file'),
       source('altitude', 'Altitude', formatAltitude(exif.altitude), 'metres',
         exif.altitude != null, 'no altitude recorded'),
       source('coordinates', 'Coordinates', formatCoordinates(exif), 'coords',
@@ -239,9 +239,9 @@ function formatAltitude(altitude) {
 
 function formatCoordinates(exif) {
   if (!hasCoords(exif)) return null;
-  const lat = `${Math.abs(exif.latitude).toFixed(4)}° ${exif.latitude >= 0 ? 'N' : 'S'}`;
-  const lon = `${Math.abs(exif.longitude).toFixed(4)}° ${exif.longitude >= 0 ? 'E' : 'W'}`;
-  return `${lat}, ${lon}`;
+  // Signed decimals: shorter than N/E suffixes, and still unambiguous because
+  // a negative sign carries the hemisphere.
+  return `${exif.latitude.toFixed(4)}, ${exif.longitude.toFixed(4)}`;
 }
 
 function formatPlace(place) {
