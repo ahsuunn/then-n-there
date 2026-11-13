@@ -531,7 +531,7 @@ function frameSize(ctx, image) {
 // The type unit is a fraction of the photo, so a preview and a full export
 // keep the same proportions. Capped by height for wide panoramas.
 function baseUnit(frame) {
-  return Math.max(11, Math.min(frame.w * 0.021, frame.h * 0.045));
+  return Math.max(12, Math.min(frame.w * 0.026, frame.h * 0.05));
 }
 
 function accentValue(value) {

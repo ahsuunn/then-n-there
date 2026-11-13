@@ -40,6 +40,11 @@ const SOURCE_NOTES = {
   moon: 'SunCalc, computed locally from the photo coordinates and time',
 };
 
+// A first-time photo starts with a compact plate. Everything else stays one
+// toggle away, and the auto-fit type stays large when fewer rows compete for
+// the same width.
+const DEFAULT_ON = new Set(['time', 'place', 'weather', 'coordinates']);
+
 export function buildFields(exif, hud, context = null) {
   const fields = [];
 
@@ -83,6 +88,12 @@ export function buildFields(exif, hud, context = null) {
     style('preset', 'Preset', hud.plateVisible ? 'Plate' : 'Off', hud.plateVisible),
     style('tone', 'Tone', hud.tone === 'dark' ? 'Dark' : 'Light', hud.tone === 'dark')
   );
+
+  for (const field of fields) {
+    if (field.group !== 'style') {
+      field.enabled = field.available && DEFAULT_ON.has(field.id);
+    }
+  }
 
   return fields;
 }
