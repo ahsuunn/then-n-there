@@ -148,8 +148,7 @@ body {
   align-items: center;
   gap: 10px;
   min-height: 40px;
-  padding: 6px 14px;
-  cursor: pointer;
+  padding: 6px 8px 6px 14px;
   transition: background 140ms ease-out;
 }
 
@@ -157,10 +156,25 @@ body {
   background: var(--raised);
 }
 
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  align-self: stretch;
+  cursor: pointer;
+}
+
+.row.is-unavailable .row-main,
+.row.is-pending .row-main {
+  cursor: default;
+}
+
 .row-label {
   flex: 0 0 auto;
   font-size: 13px;
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .row-value {
@@ -191,6 +205,40 @@ body {
 .row.is-unavailable .row-value {
   color: var(--muted);
   opacity: 0.75;
+}
+
+.row.is-pending .row-value {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.row-info {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  font-style: normal;
+  cursor: pointer;
+  transition: background 140ms ease-out, color 140ms ease-out,
+    border-color 140ms ease-out;
+}
+
+.row-info:hover {
+  background: var(--raised);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.row-info:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ---- switch (real checkbox) ---- */
@@ -396,6 +444,30 @@ body {
 .popover-open:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ---- provenance popover (small i next to a field row) ---- */
+
+.source-popover {
+  width: 264px;
+  min-width: 0;
+}
+
+.popover-value {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.popover-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 /* ---- toasts ---- */
