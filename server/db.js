@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export const DATA_DIR = path.join(__dirname, '..', 'data');
+// Tests point this at a throwaway folder so a smoke run never writes into the
+// developer's real gallery database.
+export const DATA_DIR =
+  process.env.TNT_DATA_DIR || path.join(__dirname, '..', 'data');
 export const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const DB_PATH = path.join(DATA_DIR, 'app.db');
 

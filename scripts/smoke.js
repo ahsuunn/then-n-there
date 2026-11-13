@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -6,6 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
 const serverPath = path.join(rootDir, 'server', 'index.js');
 const PORT = process.env.SMOKE_PORT || '3321';
+// Never let the smoke run touch the real data folder: it uploads a gallery, and
+// those 1x1 PNGs used to fill the Recent list in the editor.
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tnt-smoke-'));
 const BASE = `http://127.0.0.1:${PORT}`;
 
 // 1x1 transparent PNG (magic bytes 89 50 4E 47 0D 0A 1A 0A).
@@ -24,6 +29,7 @@ function finish(code) {
     server.kill();
     server = null;
   }
+  fs.rmSync(DATA_DIR, { recursive: true, force: true });
   setTimeout(() => process.exit(code), 50);
 }
 
@@ -48,7 +54,7 @@ async function waitForServer(timeoutMs = 10000) {
 
 async function run() {
   server = spawn(process.execPath, [serverPath], {
-    env: { ...process.env, PORT },
+    env: { ...process.env, PORT, TNT_DATA_DIR: DATA_DIR },
     stdio: ['ignore', 'ignore', 'inherit'],
   });
 
