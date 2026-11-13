@@ -44,7 +44,11 @@
 
         <main class="stage-wrap">
           <div class="stage" id="stage">
-            <canvas id="hudCanvas"></canvas>
+            <canvas
+              id="hudCanvas"
+              tabindex="0"
+              aria-label="Photo preview with the HUD plate. Drag the plate with the pointer, or use the arrow keys to nudge it."
+            ></canvas>
             <div class="stage-empty" id="stageEmpty">
               <p class="empty-title">Drop a photo</p>
               <p class="empty-hint">JPEG or PNG with EXIF, up to 15 MB</p>

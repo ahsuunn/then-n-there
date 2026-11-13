@@ -126,6 +126,20 @@ body {
   height: auto;
 }
 
+.stage canvas.has-plate {
+  cursor: grab;
+  touch-action: none;
+}
+
+.stage canvas.is-dragging {
+  cursor: grabbing;
+}
+
+.stage canvas:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* ---- sidebar groups and rows ---- */
 
 .group {
@@ -335,6 +349,124 @@ body {
 .btn-primary:hover {
   background: #f7b87a;
   border-color: #f7b87a;
+}
+
+/* ---- HUD style controls ---- */
+
+.row-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  padding: 9px 14px 11px;
+}
+
+.row-stack:hover {
+  background: transparent;
+}
+
+.row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: background 140ms ease-out, color 140ms ease-out;
+}
+
+.seg:last-child {
+  border-right: 0;
+}
+
+.seg:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+
+.seg[aria-pressed="true"] {
+  background: var(--raised);
+  color: var(--accent);
+}
+
+.seg:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.range {
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+}
+
+.range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.color-input {
+  flex: none;
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.color-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.row-action {
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms ease-out, border-color 140ms ease-out;
+}
+
+.row-action:hover {
+  background: var(--raised);
+  border-color: var(--muted);
+}
+
+.row-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ---- empty state (left-aligned, never a centred stack) ---- */

@@ -6,10 +6,22 @@ import { state } from './state.js';
 import { readExif } from './exif.js';
 import { buildFields, enabledFieldIds, fieldSource } from './fields.js';
 import { reconstructContext, pendingFieldIds } from './reconstruct.js';
+import {
+  HUD_PRESETS,
+  layoutHUD,
+  presetDefaults,
+  renderHUD,
+  snapBox,
+} from './hud.js';
 import { toast, setBusy } from './ui.js';
 
 const MAX_BYTES = 15 * 1024 * 1024;
-const MONO = "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+const SNAP_SCREEN_PX = 24;
+const PRESET_LABELS = { plate: 'Plate', corner: 'Corner', strip: 'Strip' };
+const TONE_OPTIONS = [
+  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Light' },
+];
 
 const els = {
   app: document.getElementById('app'),
@@ -31,6 +43,31 @@ const els = {
 
 const ctx = els.canvas.getContext('2d');
 let imageBitmap = null; // decoded photo, drawn fit-to-box
+
+// Drag state for the plate. Box dimensions are captured on pointerdown so the
+// plate follows the pointer without re-measuring mid-gesture.
+const drag = {
+  active: false,
+  pointerId: null,
+  grabX: 0,
+  grabY: 0,
+  width: 0,
+  height: 0,
+};
+
+// STYLE controls that are not registry switches. Kept so a preset change can
+// repaint their values without rebuilding the sidebar (and losing focus).
+const styleInputs = {
+  preset: null,
+  tone: null,
+  accent: null,
+  accentText: null,
+  fontScale: null,
+  fontScaleText: null,
+  opacity: null,
+  opacityText: null,
+  position: null,
+};
 
 // Reconstruction state. `context` is the section 4 snapshot; `pendingIds` is
 // the set of derived rows still in flight; `runToken` discards stale results
@@ -216,7 +253,7 @@ function rebuildFields() {
 function renderSidebar() {
   renderGroup(els.groupSource, state.fields.filter((f) => f.group === 'source'));
   renderGroup(els.groupDerived, state.fields.filter((f) => f.group === 'derived'));
-  renderGroup(els.groupStyle, state.fields.filter((f) => f.group === 'style'));
+  renderStyleGroup();
   els.shareButton.disabled = !state.image;
 }
 
@@ -291,6 +328,300 @@ function buildRow(field) {
   return row;
 }
 
+// ---- style group ----
+
+// The registry decides which STYLE rows exist. Preset and tone get segmented
+// controls because a switch cannot express three presets; every other style
+// row still falls back to the registry switch.
+function renderStyleGroup() {
+  els.groupStyle.textContent = '';
+  const frag = document.createDocumentFragment();
+
+  for (const field of state.fields) {
+    if (field.group !== 'style') continue;
+
+    if (field.id === 'preset') {
+      const preset = segmentedRow(
+        'preset',
+        field.label,
+        HUD_PRESETS.map((value) => ({
+          value,
+          label: PRESET_LABELS[value] || value,
+        })),
+        state.hud.preset,
+        setPreset
+      );
+      styleInputs.preset = preset.group;
+      frag.appendChild(preset.row);
+    } else if (field.id === 'tone') {
+      const tone = segmentedRow(
+        'tone',
+        field.label,
+        TONE_OPTIONS,
+        state.hud.tone,
+        setTone
+      );
+      styleInputs.tone = tone.group;
+      frag.appendChild(tone.row);
+    } else {
+      frag.appendChild(buildRow(field));
+    }
+  }
+
+  const accent = accentRow();
+  styleInputs.accent = accent.input;
+  styleInputs.accentText = accent.readout;
+  frag.appendChild(accent.row);
+
+  const fontScale = rangeRow({
+    id: 'fontScale',
+    label: 'Font scale',
+    min: 0.7,
+    max: 2,
+    step: 0.05,
+    value: state.hud.fontScale,
+    format: (value) => `${value.toFixed(2)}x`,
+    onInput(value) {
+      state.hud.fontScale = value;
+      renderCanvas();
+    },
+  });
+  styleInputs.fontScale = fontScale.input;
+  styleInputs.fontScaleText = fontScale.readout;
+  frag.appendChild(fontScale.row);
+
+  const opacity = rangeRow({
+    id: 'opacity',
+    label: 'Opacity',
+    min: 0.2,
+    max: 1,
+    step: 0.05,
+    value: state.hud.opacity,
+    format: (value) => `${Math.round(value * 100)}%`,
+    onInput(value) {
+      state.hud.opacity = value;
+      renderCanvas();
+    },
+  });
+  styleInputs.opacity = opacity.input;
+  styleInputs.opacityText = opacity.readout;
+  frag.appendChild(opacity.row);
+
+  const position = positionRow();
+  styleInputs.position = position.readout;
+  frag.appendChild(position.row);
+
+  els.groupStyle.appendChild(frag);
+}
+
+function segmentedRow(id, label, options, value, onPick) {
+  const row = document.createElement('div');
+  row.className = 'row row-stack';
+  row.dataset.id = id;
+
+  const name = document.createElement('span');
+  name.className = 'row-label';
+  name.textContent = label;
+
+  const group = document.createElement('div');
+  group.className = 'segmented';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', label);
+
+  for (const option of options) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'seg';
+    button.dataset.value = option.value;
+    button.textContent = option.label;
+    button.setAttribute('aria-pressed', String(option.value === value));
+    button.addEventListener('click', () => {
+      paintSegmented(group, option.value);
+      onPick(option.value);
+    });
+    group.appendChild(button);
+  }
+
+  row.append(name, group);
+  return { row, group };
+}
+
+function rangeRow({ id, label, min, max, step, value, format, onInput }) {
+  const row = document.createElement('div');
+  row.className = 'row row-stack';
+  row.dataset.id = id;
+
+  const head = document.createElement('div');
+  head.className = 'row-head';
+
+  const name = document.createElement('label');
+  name.className = 'row-label';
+  name.htmlFor = `style-${id}`;
+  name.textContent = label;
+
+  const readout = document.createElement('span');
+  readout.className = 'row-value';
+  readout.textContent = format(value);
+
+  head.append(name, readout);
+
+  const input = document.createElement('input');
+  input.type = 'range';
+  input.className = 'range';
+  input.id = `style-${id}`;
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
+  input.value = String(value);
+  input.addEventListener('input', () => {
+    const next = Number(input.value);
+    readout.textContent = format(next);
+    onInput(next);
+  });
+
+  row.append(head, input);
+  return { row, input, readout };
+}
+
+function accentRow() {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.dataset.id = 'accent';
+
+  const name = document.createElement('label');
+  name.className = 'row-label';
+  name.htmlFor = 'style-accent';
+  name.textContent = 'Accent';
+
+  const readout = document.createElement('span');
+  readout.className = 'row-value';
+  readout.textContent = state.hud.accent;
+
+  const input = document.createElement('input');
+  input.type = 'color';
+  input.className = 'color-input';
+  input.id = 'style-accent';
+  input.value = state.hud.accent;
+  input.addEventListener('input', () => {
+    state.hud.accent = input.value;
+    readout.textContent = input.value;
+    renderCanvas();
+  });
+
+  row.append(name, readout, input);
+  return { row, input, readout };
+}
+
+function positionRow() {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.dataset.id = 'position';
+
+  const name = document.createElement('span');
+  name.className = 'row-label';
+  name.textContent = 'Position';
+
+  const readout = document.createElement('span');
+  readout.className = 'row-value';
+  readout.textContent = positionText();
+
+  const reset = document.createElement('button');
+  reset.type = 'button';
+  reset.className = 'row-action';
+  reset.textContent = 'Reset';
+  reset.setAttribute('aria-label', 'Reset the plate to the preset position');
+  reset.addEventListener('click', resetHudPosition);
+
+  row.append(name, readout, reset);
+  return { row, readout };
+}
+
+function positionText() {
+  return `${Math.round(state.hud.x * 100)}% · ${Math.round(state.hud.y * 100)}%`;
+}
+
+function setPreset(id) {
+  if (!HUD_PRESETS.includes(id)) return;
+
+  const defaults = presetDefaults(id);
+
+  state.hud.preset = defaults.preset;
+  state.hud.align = defaults.align;
+  state.hud.fontScale = defaults.fontScale;
+
+  // Each preset carries a default position, but a place the user chose is
+  // theirs: a moved plate keeps its normalised centre across the switch.
+  if (!state.hud.moved) {
+    state.hud.x = defaults.x;
+    state.hud.y = defaults.y;
+  }
+
+  clampHudPosition();
+  syncStyleControls();
+  renderCanvas();
+}
+
+function setTone(tone) {
+  state.hud.tone = tone === 'light' ? 'light' : 'dark';
+  renderCanvas();
+}
+
+function resetHudPosition() {
+  const defaults = presetDefaults(state.hud.preset);
+  state.hud.x = defaults.x;
+  state.hud.y = defaults.y;
+  state.hud.fontScale = defaults.fontScale;
+  state.hud.align = defaults.align;
+  state.hud.moved = false;
+  clampHudPosition();
+  syncStyleControls();
+  renderCanvas();
+}
+
+function syncStyleControls() {
+  paintSegmented(styleInputs.preset, state.hud.preset);
+  paintSegmented(styleInputs.tone, state.hud.tone);
+
+  if (styleInputs.accent) styleInputs.accent.value = state.hud.accent;
+  if (styleInputs.accentText) {
+    styleInputs.accentText.textContent = state.hud.accent;
+  }
+  if (styleInputs.fontScale) {
+    styleInputs.fontScale.value = String(state.hud.fontScale);
+  }
+  if (styleInputs.fontScaleText) {
+    styleInputs.fontScaleText.textContent = `${state.hud.fontScale.toFixed(2)}x`;
+  }
+  if (styleInputs.opacity) styleInputs.opacity.value = String(state.hud.opacity);
+  if (styleInputs.opacityText) {
+    styleInputs.opacityText.textContent = `${Math.round(state.hud.opacity * 100)}%`;
+  }
+  updatePositionReadout();
+}
+
+function paintSegmented(group, value) {
+  if (!group) return;
+  for (const button of group.querySelectorAll('.seg')) {
+    button.setAttribute(
+      'aria-pressed',
+      String(button.dataset.value === value)
+    );
+  }
+}
+
+function updatePositionReadout() {
+  if (!styleInputs.position) return;
+  styleInputs.position.textContent = positionText();
+}
+
+function clampHudPosition() {
+  if (!imageBitmap) return;
+  const layout = layoutHUD(ctx, imageBitmap, state.fields, state.hud);
+  if (!layout) return;
+  state.hud.x = layout.config.x;
+  state.hud.y = layout.config.y;
+}
+
 function showSource(field, anchor) {
   closeSource();
 
@@ -339,37 +670,16 @@ function closeSource() {
 
 function onToggle(id, checked) {
   const field = state.fields.find((f) => f.id === id);
-  if (!field) return;
+  if (!field || field.group === 'style') return;
 
-  if (field.group === 'style') {
-    if (id === 'tone') {
-      state.hud.tone = checked ? 'dark' : 'light';
-      field.value = checked ? 'Dark' : 'Light';
-    } else if (id === 'preset') {
-      state.hud.plateVisible = checked;
-      field.value = checked ? 'Plate' : 'Off';
-    }
-    field.enabled = checked;
-    updateRowValue(id, field.value);
+  field.enabled = checked;
+  if (checked) {
+    if (!state.hud.fields.includes(id)) state.hud.fields.push(id);
   } else {
-    field.enabled = checked;
-    if (checked) {
-      if (!state.hud.fields.includes(id)) state.hud.fields.push(id);
-    } else {
-      state.hud.fields = state.hud.fields.filter((x) => x !== id);
-    }
+    state.hud.fields = state.hud.fields.filter((x) => x !== id);
   }
 
   renderCanvas();
-}
-
-function updateRowValue(id, text) {
-  const input = document.getElementById(`field-${id}`);
-  const row = input && input.closest('.row');
-  if (row) {
-    const value = row.querySelector('.row-value');
-    if (value) value.textContent = text;
-  }
 }
 
 // ---- canvas ----
@@ -378,6 +688,7 @@ function renderCanvas() {
   if (!imageBitmap) {
     els.canvas.style.display = 'none';
     els.stageEmpty.hidden = false;
+    els.canvas.classList.remove('has-plate');
     return;
   }
   els.stageEmpty.hidden = true;
@@ -401,89 +712,139 @@ function renderCanvas() {
   ctx.clearRect(0, 0, cw, ch);
   ctx.drawImage(imageBitmap, 0, 0, cw, ch);
 
-  if (state.hud.plateVisible) drawPlate({ x: 0, y: 0, w: cw, h: ch });
+  // The HUD renderer is the only thing that draws over the photo. It reads the
+  // registry, so toggles and presets need no drawing code here.
+  const layout = renderHUD(ctx, imageBitmap, state.fields, state.hud);
+  els.canvas.classList.toggle('has-plate', Boolean(layout));
+
+  // Store the clamped fractions the renderer used, so a tighter preset or a
+  // smaller frame can never leave the config pointing outside the photo.
+  if (layout) {
+    state.hud.x = layout.config.x;
+    state.hud.y = layout.config.y;
+  }
+  updatePositionReadout();
 }
 
-// Minimal placeholder plate: mono text, amber rule, bottom left. The real HUD
-// renderer (js/hud.js) lands in phase 5; this proves the toggle behaviour now.
-function drawPlate(photoRect) {
-  const rows = state.fields.filter(
-    (f) => f.group !== 'style' && f.available && f.enabled
-  );
-  if (rows.length === 0) return;
+// ---- plate drag and keyboard nudge ----
 
-  const dark = state.hud.tone !== 'light';
-  const palette = dark
-    ? { bg: 'rgba(11,12,14,0.72)', ink: '#e8eaed', muted: '#9aa1ab' }
-    : { bg: 'rgba(255,255,255,0.78)', ink: '#14161a', muted: '#5f6368' };
-  const accent = state.hud.accent;
+els.canvas.addEventListener('pointerdown', onPointerDown);
+els.canvas.addEventListener('pointermove', onPointerMove);
+els.canvas.addEventListener('pointerup', endDrag);
+els.canvas.addEventListener('pointercancel', endDrag);
+els.canvas.addEventListener('keydown', onCanvasKeyDown);
 
-  // Everything scales off the photo width, so the plate reads the same on a
-  // 600px preview and on a 3264px export.
-  const unit = Math.max(14, Math.round(photoRect.w * 0.021));
-  const padX = Math.round(unit * 1.2);
-  const padY = Math.round(unit * 1.1);
-  const lineHeight = Math.round(unit * 1.55);
-  const gap = Math.round(unit * 1.4);
-  const inset = Math.round(unit * 1.1);
-  const radius = Math.round(unit * 0.6);
-  const font = `500 ${unit}px ${MONO}`;
+function onPointerDown(event) {
+  if (!imageBitmap || event.button !== 0) return;
 
-  ctx.font = font;
-  const labels = rows.map((r) => r.label.toUpperCase());
-  const values = rows.map((r) => r.value ?? '');
-  let maxLabel = 0;
-  let maxValue = 0;
-  for (let i = 0; i < rows.length; i++) {
-    maxLabel = Math.max(maxLabel, ctx.measureText(labels[i]).width);
-    maxValue = Math.max(maxValue, ctx.measureText(values[i]).width);
-  }
+  const layout = layoutHUD(ctx, imageBitmap, state.fields, state.hud);
+  if (!layout) return;
 
-  const plateW = padX * 2 + maxLabel + gap + maxValue;
-  const plateH = padY * 2 + rows.length * lineHeight;
+  const point = canvasPoint(event);
+  const grace = layout.unit * 0.4;
+  const rect = layout.rect;
+  const inside =
+    point.x >= rect.x - grace &&
+    point.x <= rect.x + rect.w + grace &&
+    point.y >= rect.y - grace &&
+    point.y <= rect.y + rect.h + grace;
+  if (!inside) return;
 
-  // Bottom-left, clamped so the plate stays on the photo.
-  let px = photoRect.x + inset;
-  let py = photoRect.y + photoRect.h - plateH - inset;
-  px = Math.max(photoRect.x, Math.min(px, photoRect.x + photoRect.w - plateW));
-  py = Math.max(photoRect.y, Math.min(py, photoRect.y + photoRect.h - plateH));
+  drag.active = true;
+  drag.pointerId = event.pointerId;
+  drag.grabX = point.x - rect.x;
+  drag.grabY = point.y - rect.y;
+  drag.width = rect.w;
+  drag.height = rect.h;
 
-  roundRect(ctx, px, py, plateW, plateH, radius);
-  ctx.fillStyle = palette.bg;
-  ctx.fill();
-
-  // Amber rule.
-  ctx.fillStyle = accent;
-  ctx.fillRect(px, py, plateW, Math.max(2, Math.round(unit * 0.18)));
-
-  ctx.textBaseline = 'middle';
-  const textTop = py + padY + lineHeight / 2;
-  for (let i = 0; i < rows.length; i++) {
-    const y = textTop + i * lineHeight;
-    ctx.font = font;
-    ctx.fillStyle = palette.muted;
-    ctx.textAlign = 'left';
-    ctx.fillText(labels[i], px + padX, y);
-    ctx.fillStyle = palette.ink;
-    ctx.textAlign = 'right';
-    ctx.fillText(values[i], px + plateW - padX, y);
-  }
+  els.canvas.setPointerCapture(event.pointerId);
+  els.canvas.classList.add('is-dragging');
+  els.canvas.focus({ preventScroll: true });
+  event.preventDefault();
 }
 
-function roundRect(c, x, y, w, h, r) {
-  r = Math.min(r, w / 2, h / 2);
-  if (c.roundRect) {
-    c.beginPath();
-    c.roundRect(x, y, w, h, r);
-    return;
+function onPointerMove(event) {
+  if (!drag.active || event.pointerId !== drag.pointerId) return;
+
+  const point = canvasPoint(event);
+  const frameW = els.canvas.width;
+  const frameH = els.canvas.height;
+
+  let box = {
+    x: point.x - drag.grabX,
+    y: point.y - drag.grabY,
+    w: drag.width,
+    h: drag.height,
+  };
+
+  // Snap inside 24 screen pixels, measured in frame pixels.
+  box = snapBox(box, frameW, frameH, SNAP_SCREEN_PX * point.scale);
+  box.x = clamp(box.x, 0, Math.max(0, frameW - box.w));
+  box.y = clamp(box.y, 0, Math.max(0, frameH - box.h));
+
+  // The config stores the plate centre as a fraction of the frame, never
+  // pixels, so a resize keeps the plate in the same relative place.
+  state.hud.x = (box.x + box.w / 2) / frameW;
+  state.hud.y = (box.y + box.h / 2) / frameH;
+  state.hud.moved = true;
+
+  renderCanvas();
+  event.preventDefault();
+}
+
+function endDrag(event) {
+  if (!drag.active) return;
+  drag.active = false;
+  drag.pointerId = null;
+  els.canvas.classList.remove('is-dragging');
+  if (
+    event.pointerId != null &&
+    els.canvas.hasPointerCapture &&
+    els.canvas.hasPointerCapture(event.pointerId)
+  ) {
+    els.canvas.releasePointerCapture(event.pointerId);
   }
-  c.beginPath();
-  c.moveTo(x + r, y);
-  c.arcTo(x + w, y, x + w, y + h, r);
-  c.arcTo(x + w, y + h, x, y + h, r);
-  c.arcTo(x, y + h, x, y, r);
-  c.arcTo(x, y, x + w, y, r);
-  c.closePath();
+  renderCanvas();
+}
+
+function onCanvasKeyDown(event) {
+  if (!imageBitmap) return;
+
+  const step = event.shiftKey ? 0.05 : 0.01;
+  let dx = 0;
+  let dy = 0;
+  if (event.key === 'ArrowLeft') dx = -step;
+  else if (event.key === 'ArrowRight') dx = step;
+  else if (event.key === 'ArrowUp') dy = -step;
+  else if (event.key === 'ArrowDown') dy = step;
+  else return;
+
+  const layout = layoutHUD(ctx, imageBitmap, state.fields, {
+    ...state.hud,
+    x: state.hud.x + dx,
+    y: state.hud.y + dy,
+  });
+  if (!layout) return;
+
+  state.hud.x = layout.config.x;
+  state.hud.y = layout.config.y;
+  state.hud.moved = true;
+  renderCanvas();
+  event.preventDefault();
+}
+
+function canvasPoint(event) {
+  const rect = els.canvas.getBoundingClientRect();
+  const scale = rect.width > 0 ? els.canvas.width / rect.width : 1;
+  return {
+    x: (event.clientX - rect.left) * scale,
+    y: (event.clientY - rect.top) * scale,
+    scale,
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 // ---- sharing ----
@@ -498,6 +859,8 @@ async function share() {
     const payload = {
       hudConfig: {
         preset: state.hud.preset,
+        x: state.hud.x,
+        y: state.hud.y,
         tone: state.hud.tone,
         accent: state.hud.accent,
         fontScale: state.hud.fontScale,
