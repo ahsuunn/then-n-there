@@ -52,6 +52,46 @@ export function insertGallery(record) {
   return getGallery(record.slug);
 }
 
+// Recent galleries for the editor footer. Newest first, clipped at the limit the
+// caller asks for. Only the fields the list row needs are read, so the payload
+// stays small even when a whole photo's context sits in the table.
+export function listGalleries(limit) {
+  const rows = db
+    .prepare(
+      `SELECT slug, created_at, image_path, hud_config, context
+       FROM galleries
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT ?`
+    )
+    .all(limit);
+
+  return rows.map((row) => {
+    const hudConfig = parseJson(row.hud_config);
+    const context = parseJson(row.context);
+    const place =
+      context && typeof context.place === 'object' ? context.place : null;
+    return {
+      slug: row.slug,
+      createdAt: row.created_at,
+      imagePath: row.image_path,
+      place: place ? place.name || place.admin || place.country || null : null,
+      preset:
+        hudConfig && typeof hudConfig.preset === 'string'
+          ? hudConfig.preset
+          : 'plate',
+    };
+  });
+}
+
+function parseJson(raw) {
+  try {
+    const value = JSON.parse(raw);
+    return value !== null && typeof value === 'object' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getGallery(slug) {
   const row = db
     .prepare('SELECT * FROM galleries WHERE slug = ?')

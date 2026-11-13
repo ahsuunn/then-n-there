@@ -17,6 +17,9 @@ import { toast, setBusy } from './ui.js';
 
 const MAX_BYTES = 15 * 1024 * 1024;
 const SNAP_SCREEN_PX = 24;
+const RECENT_LIMIT = 50;
+const DEFAULT_ACCENT = '#f0a75c';
+const HUD_ALIGNMENTS = ['left', 'right', 'center'];
 const PRESET_LABELS = { plate: 'Plate', corner: 'Corner', strip: 'Strip' };
 const TONE_OPTIONS = [
   { value: 'dark', label: 'Dark' },
@@ -35,6 +38,8 @@ const els = {
   groupSource: document.getElementById('group-source'),
   groupDerived: document.getElementById('group-derived'),
   groupStyle: document.getElementById('group-style'),
+  recentList: document.getElementById('recentList'),
+  recentEmpty: document.getElementById('recentEmpty'),
   sharePopover: document.getElementById('sharePopover'),
   shareUrl: document.getElementById('shareUrl'),
   copyButton: document.getElementById('copyButton'),
@@ -76,11 +81,13 @@ let context = null;
 let pendingIds = new Set();
 let runToken = 0;
 let sourcePopover = null;
+let openingSlug = null;
 
 // ---- initial render (no photo yet) ----
 state.fields = buildFields(null, state.hud);
 renderSidebar();
 renderCanvas();
+loadRecent();
 
 // ---- file intake ----
 
@@ -847,6 +854,204 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+// ---- recent galleries ----
+
+// The list is a read of the server's index, never the photos themselves. The
+// thumbnails are the stored image paths, so the browser reuses its own cache
+// when a row is opened.
+async function loadRecent() {
+  try {
+    const res = await fetch(`/api/galleries?limit=${RECENT_LIMIT}`);
+    if (!res.ok) throw new Error('list unavailable');
+    const records = await res.json();
+    renderRecent(Array.isArray(records) ? records : []);
+  } catch {
+    renderRecent([]);
+  }
+}
+
+function renderRecent(records) {
+  els.recentList.textContent = '';
+  els.recentEmpty.hidden = records.length > 0;
+
+  const frag = document.createDocumentFragment();
+  for (const record of records) {
+    const item = document.createElement('li');
+    item.className = 'recent-item';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'recent-row';
+    button.title = `Open ${record.place || 'untitled'}`;
+    button.addEventListener('click', () => openGallery(record.slug));
+
+    const thumb = document.createElement('img');
+    thumb.className = 'recent-thumb';
+    thumb.src = record.imagePath;
+    thumb.alt = '';
+    thumb.width = 40;
+    thumb.height = 40;
+    thumb.loading = 'lazy';
+
+    const meta = document.createElement('span');
+    meta.className = 'recent-meta';
+
+    const place = document.createElement('span');
+    place.className = 'recent-place';
+    place.textContent = record.place || 'untitled';
+
+    const time = document.createElement('span');
+    time.className = 'recent-time';
+    time.textContent = relativeTime(record.createdAt);
+
+    meta.append(place, time);
+    button.append(thumb, meta);
+    item.append(button);
+    frag.appendChild(item);
+  }
+  els.recentList.appendChild(frag);
+}
+
+function relativeTime(iso) {
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return 'unknown time';
+
+  const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (seconds < 60) return 'just now';
+
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+
+  const months = Math.round(days / 30);
+  if (months < 12) return `${months}mo ago`;
+
+  return `${Math.round(months / 12)}y ago`;
+}
+
+// Reopen a saved gallery: fetch the record, decode the stored image, read that
+// image's own EXIF, and rebuild the registry from the saved context snapshot.
+// Nothing here reconstructs anything, so a reopened photo renders with the
+// network off.
+async function openGallery(slug) {
+  if (openingSlug) return;
+  openingSlug = slug;
+
+  try {
+    const res = await fetch(`/api/galleries/${encodeURIComponent(slug)}`);
+    if (!res.ok) throw new Error('Could not open that saved photo.');
+    const record = await res.json();
+
+    const imageRes = await fetch(record.imagePath);
+    if (!imageRes.ok) throw new Error('The saved image could not be loaded.');
+    const blob = await imageRes.blob();
+    const filename = String(record.imagePath).split('/').pop() || 'photo.jpg';
+    const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+
+    const bitmap = await decodeImage(file);
+    const exif = await readExif(file);
+    if (exif.width == null) exif.width = bitmap.width;
+    if (exif.height == null) exif.height = bitmap.height;
+
+    // Discard any lookup still in flight from the previous photo: its results
+    // belong to another snapshot and must not land in this one.
+    runToken += 1;
+    imageBitmap = bitmap;
+    pendingIds = new Set();
+    context = normalizeSnapshot(record.context);
+
+    const hudConfig =
+      record.hudConfig && typeof record.hudConfig === 'object'
+        ? record.hudConfig
+        : {};
+
+    applyHudConfig(hudConfig);
+
+    const fields = buildFields(exif, state.hud, context);
+    applyEnabledFields(fields, hudConfig.fields);
+
+    state.set({
+      image: { file, width: bitmap.width, height: bitmap.height },
+      exif,
+      context,
+      fields,
+    });
+    state.hud.fields = enabledFieldIds(fields);
+
+    renderSidebar();
+    renderCanvas();
+    closeShare();
+  } catch (err) {
+    toast(err.message || 'Could not open that saved photo.', 'error');
+  } finally {
+    openingSlug = null;
+  }
+}
+
+// A saved snapshot may predate a field, so every key is normalised here rather
+// than trusted. This is the same shape as the section 4 context contract.
+function normalizeSnapshot(raw) {
+  const c = raw && typeof raw === 'object' ? raw : {};
+  return {
+    place: c.place ?? null,
+    weather: c.weather ?? null,
+    elevation:
+      typeof c.elevation === 'number' && Number.isFinite(c.elevation)
+        ? c.elevation
+        : null,
+    peaks: Array.isArray(c.peaks) ? c.peaks : null,
+    sun: c.sun ?? null,
+    moon: c.moon ?? null,
+  };
+}
+
+// Restore the saved look. Missing keys fall back to the preset defaults, so an
+// older record with a bare {preset} still opens exactly where that preset sits.
+function applyHudConfig(config) {
+  const preset = HUD_PRESETS.includes(config.preset) ? config.preset : 'plate';
+  const defaults = presetDefaults(preset);
+
+  state.hud.preset = preset;
+  state.hud.tone = config.tone === 'light' ? 'light' : 'dark';
+  state.hud.accent = /^#[0-9a-f]{6}$/i.test(config.accent || '')
+    ? config.accent
+    : DEFAULT_ACCENT;
+  state.hud.fontScale = numberIn(config.fontScale, 0.7, 2, defaults.fontScale);
+  state.hud.opacity = numberIn(config.opacity, 0.2, 1, 1);
+  state.hud.align = HUD_ALIGNMENTS.includes(config.align)
+    ? config.align
+    : defaults.align;
+  state.hud.x = numberIn(config.x, 0, 1, defaults.x);
+  state.hud.y = numberIn(config.y, 0, 1, defaults.y);
+  // A position that was saved was a position the user chose: a later preset
+  // switch must not move it back to the preset default.
+  state.hud.moved =
+    typeof config.x === 'number' && typeof config.y === 'number';
+  state.hud.plateVisible = true;
+}
+
+// Only fields the saved config listed stay on, and only if this photo can still
+// resolve them. Everything else keeps its registry state, disabled with a
+// reason, rather than disappearing.
+function applyEnabledFields(fields, stored) {
+  if (!Array.isArray(stored)) return;
+  const enabled = new Set(stored);
+  for (const field of fields) {
+    if (field.group === 'style') continue;
+    field.enabled = field.available && enabled.has(field.id);
+  }
+}
+
+function numberIn(value, min, max, fallback) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
 // ---- sharing ----
 
 els.shareButton.addEventListener('click', share);
@@ -877,6 +1082,7 @@ async function share() {
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error((data && data.error) || 'Upload failed');
     showShare(data.slug);
+    loadRecent();
   } catch (err) {
     toast(err.message || 'Upload failed', 'error');
   } finally {

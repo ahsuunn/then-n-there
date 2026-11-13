@@ -4,7 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateSlug } from './slug.js';
-import { UPLOADS_DIR, insertGallery, getGallery, slugExists } from './db.js';
+import {
+  UPLOADS_DIR,
+  insertGallery,
+  getGallery,
+  listGalleries,
+  slugExists,
+} from './db.js';
 import { upload, sniffImage, imageDimensions } from './uploads.js';
 import { peaksAt } from './peaks.js';
 
@@ -13,6 +19,8 @@ const publicDir = path.join(__dirname, '..', 'public');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const DEFAULT_GALLERY_LIMIT = 12;
+const MAX_GALLERY_LIMIT = 50;
 
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(UPLOADS_DIR));
@@ -75,6 +83,14 @@ function handleUpload(req, res) {
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
+
+app.get('/api/galleries', (req, res) => {
+  const requested = Number(req.query.limit);
+  const limit = Number.isFinite(requested)
+    ? Math.min(Math.max(Math.round(requested), 1), MAX_GALLERY_LIMIT)
+    : DEFAULT_GALLERY_LIMIT;
+  return res.json(listGalleries(limit));
+});
 
 app.get('/api/galleries/:slug', (req, res) => {
   const record = getGallery(req.params.slug);
