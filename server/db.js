@@ -103,6 +103,18 @@ export function getGallery(slug) {
   return rowToRecord(row);
 }
 
+// Removes one record and hands back the image path so the caller can unlink the
+// file. Returns null when the slug is unknown, so the route can answer 404
+// without a second query.
+export function deleteGallery(slug) {
+  const row = db
+    .prepare('SELECT image_path FROM galleries WHERE slug = ?')
+    .get(slug);
+  if (!row) return null;
+  db.prepare('DELETE FROM galleries WHERE slug = ?').run(slug);
+  return { slug, imagePath: row.image_path };
+}
+
 function rowToRecord(row) {
   return {
     slug: row.slug,
