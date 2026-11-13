@@ -199,20 +199,22 @@ out at 5 seconds per attempt, and caches per rounded coordinate pair for a day.
 |---|---|---|
 | `state.js` | 39 | One store: `image`, `exif`, `fields`, `hud`, plus `set()`/`subscribe()` |
 | `exif.js` | 97 | `readExif(file)` → the EXIF contract, nulls instead of throws |
-| `fields.js` | 291 | `buildFields()` → registry; `enabledFieldIds()`; provenance text |
-| `reconstruct.js` | 455 | Four lookups, per-field timeouts, `localStorage` cache, sky maths |
+| `fields.js` | 301 | `buildFields()` → registry; `enabledFieldIds()`; provenance text |
+| `reconstruct.js` | 478 | Four lookups, per-field timeouts, `localStorage` cache, sky maths |
 | `hud.js` | 572 | `layoutHUD()`, `renderHUD()`, `snapBox()`, the three presets |
+| `map.js` | 300 | Leaflet overlay, draggable pin, picker state, geolocation |
 | `export.js` | 130 | `renderToBlob()`, `exportSize()`, `exportName()`, download helper |
-| `editor.js` | 1257 | Wiring: intake, sidebar, canvas lifecycle, drag, recent, export, share |
-| `share.js` | 204 | Read-only viewer: fetch record, rebuild fields, paint, download |
-| `ui.js` | 43 | `toast()`, `setBusy()` |
+| `editor.js` | 1621 | Wiring: intake, sidebar, canvas, drag, map, recent, export, share |
+| `share.js` | 212 | Read-only viewer: fetch record, rebuild fields, paint, download |
+| `ui.js` | 98 | `toast()`, `setBusy()` |
 | `wmo.js` | 40 | WMO weather code → short text |
 
 `editor.js` is the long one; its section comments are the map:
 
 ```
-initial render · file intake · reconstruction · sidebar · style group ·
-canvas · plate drag and keyboard nudge · recent galleries · export · sharing
+initial render · file intake · reconstruction · location map · sidebar ·
+style group · canvas · plate drag and keyboard nudge · recent galleries ·
+export · sharing · canvas keeps up with the stage and the font load
 ```
 
 Read it in that order and it is a sequence, not a pile.
@@ -343,7 +345,7 @@ save a gallery, which is acceptable here and would not be in a real service.
 |---|---|
 | HTML and CSS | `public/index.html`, `public/share.html`, `public/css/tokens.css`, `editor.css`, `primitives.css`, `share.css` |
 | JavaScript | all of `public/js/`, ES modules, no framework |
-| Location based | `exif.js` (GPS contract), `reconstruct.js` (reverse geocode, elevation), `fields.js` (coordinates row) |
+| Location based | `exif.js` (GPS contract), `map.js` (Leaflet overlay, pin drag, picker, geolocation), `reconstruct.js` (reverse geocode, elevation) |
 | Canvas | `hud.js` (layout and draw), `export.js` (offscreen render, `toBlob`) |
 | Open API | `reconstruct.js`: BigDataCloud, Open-Meteo archive, Open-Meteo elevation, Overpass via `/api/peaks` |
 | Server / client | `server/index.js` (API), `share.js` (client of that API), upload and share flow |
@@ -359,9 +361,6 @@ history.
 
 ## 13. What is not built
 
-- The Leaflet map overlay for correcting a pin on a photo with no GPS. Planned
-  as the next phase; today, a photo without GPS shows a specific reason and the
-  rest of the HUD still works.
 - Deletion or editing of a saved gallery. Rows are append-only, and switching a
   record never overwrites it.
 - Pagination beyond 50 recent rows, and any authentication.
