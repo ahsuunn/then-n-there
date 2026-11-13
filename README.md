@@ -362,8 +362,8 @@ history.
 
 ## 13. What is not built
 
-- Deletion or editing of a saved gallery. Rows are append-only, and switching a
-  record never overwrites it.
+- Editing a saved gallery. Rows are immutable apart from delete, and switching a
+  record never overwrites it: sharing again mints a new slug.
 - Pagination beyond 50 recent rows, and any authentication.
 - A demo photo set; bring your own originals, since messengers and social apps
   strip EXIF and those photos will show the fallback states.
