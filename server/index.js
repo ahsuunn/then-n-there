@@ -9,6 +9,7 @@ import {
   insertGallery,
   getGallery,
   listGalleries,
+  deleteGallery,
   slugExists,
 } from './db.js';
 import { upload, sniffImage, imageDimensions } from './uploads.js';
@@ -102,6 +103,24 @@ app.get('/api/galleries/:slug', (req, res) => {
 
 app.get('/s/:slug', (req, res) => {
   res.sendFile(path.join(publicDir, 'share.html'));
+});
+
+// Removes a saved gallery and its image file. The slug is re-validated here
+// because it is joined onto a filesystem path below.
+app.delete('/api/galleries/:slug', (req, res) => {
+  const { slug } = req.params;
+  if (!/^[0-9A-Za-z]{4,32}$/.test(slug)) {
+    return res.status(400).json({ error: 'invalid slug' });
+  }
+
+  const removed = deleteGallery(slug);
+  if (!removed) {
+    return res.status(404).json({ error: 'gallery not found' });
+  }
+
+  const filename = path.basename(removed.imagePath);
+  fs.rmSync(path.join(UPLOADS_DIR, filename), { force: true });
+  return res.status(204).end();
 });
 
 app.get('/api/peaks', async (req, res) => {
