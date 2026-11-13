@@ -4,46 +4,74 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Then &amp; There</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/css/app.css" />
   </head>
-  <body>
-    <header class="site-header">
-      <h1>Then &amp; There</h1>
-      <p class="tagline">Upload a photo. Get a share link.</p>
+  <body class="editor-page">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-name">Then &amp; There</span>
+        <span class="brand-version">v0.1</span>
+      </div>
+      <div class="actions">
+        <button type="button" id="openButton" class="button">Open photo</button>
+        <button type="button" id="shareButton" class="button button--accent" disabled>
+          Share
+        </button>
+      </div>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png" hidden />
     </header>
 
-    <main class="editor">
-      <section
-        class="drop-zone"
-        id="dropZone"
-        tabindex="0"
-        role="button"
-        aria-label="Upload a photo"
-      >
-        <input type="file" id="fileInput" accept="image/jpeg,image/png" hidden />
-        <p class="drop-title">Drop a photo here</p>
-        <p class="drop-hint">JPEG or PNG, up to 15 MB</p>
-        <button type="button" class="pick-button" id="pickButton">
-          Choose a file
-        </button>
-      </section>
+    <div class="workspace">
+      <aside class="sidebar" id="sidebar" aria-label="Photo fields">
+        <div class="sidebar-scroll">
+          <section class="group" aria-labelledby="sourceHeading">
+            <h2 class="group-title" id="sourceHeading">Source</h2>
+            <div class="group-body" id="sourceBody"></div>
+          </section>
 
-      <p class="status" id="status" role="status" aria-live="polite"></p>
+          <section class="group" aria-labelledby="derivedHeading">
+            <h2 class="group-title" id="derivedHeading">Derived</h2>
+            <div class="group-body" id="derivedBody"></div>
+          </section>
 
-      <section class="result" id="result" hidden>
-        <h2>Share link</h2>
-        <div class="result-url-wrap">
-          <input type="text" id="shareUrl" class="result-url" readonly />
-          <button type="button" id="copyButton" class="copy-button">Copy</button>
+          <section class="group" aria-labelledby="styleHeading">
+            <h2 class="group-title" id="styleHeading">Style</h2>
+            <div class="group-body" id="styleBody"></div>
+          </section>
         </div>
-        <p>
-          <a id="openLink" class="open-link" target="_blank" rel="noopener">
-            Open in a new tab
-          </a>
-        </p>
-      </section>
-    </main>
+      </aside>
 
-    <script type="module" src="/js/main.js"></script>
+      <section class="canvas-area" id="canvasArea">
+        <canvas id="canvas" aria-label="Photo preview"></canvas>
+        <div class="empty" id="emptyState">
+          <p class="empty-title">No photo loaded</p>
+          <p class="empty-hint">
+            Drop a JPEG or PNG anywhere, or choose one to read its EXIF.
+          </p>
+          <button type="button" id="pickButton" class="button">Choose a file</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="popover" id="sharePopover" hidden>
+      <p class="popover-title">Share link</p>
+      <div class="popover-url-row">
+        <input type="text" id="shareUrl" class="popover-url" readonly />
+        <button type="button" id="copyButton" class="button button--small">Copy</button>
+      </div>
+      <a id="openLink" class="popover-link" target="_blank" rel="noopener">
+        Open in a new tab
+      </a>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="/js/editor.js"></script>
   </body>
 </html>
