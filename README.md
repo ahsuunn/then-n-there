@@ -34,7 +34,11 @@ All data sources are keyless and public; the app stores no API keys.
 - Reverse geocode: BigDataCloud reverse geocode client
 - Historical weather: Open-Meteo archive API
 - Ground elevation: Open-Meteo elevation API
-- Named peaks: Overpass API (OpenStreetMap)
+- Named peaks: Overpass API (OpenStreetMap), called through `GET /api/peaks`
+  on this server rather than from the browser. Only one public Overpass
+  instance sends CORS headers, and all of them answer 502 when their workers
+  are busy, so the server rotates three mirrors, retries with backoff, and
+  caches each answer for a day.
 - Sun and moon: SunCalc, computed locally
 - Map tiles: OpenStreetMap via Leaflet
 
