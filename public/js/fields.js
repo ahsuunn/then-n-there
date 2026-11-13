@@ -48,22 +48,32 @@ const DEFAULT_ON = new Set(['time', 'place', 'weather', 'coordinates']);
 export function buildFields(exif, hud, context = null) {
   const fields = [];
 
+  // A pin the user corrected on the map travels in the context snapshot. When it
+  // is present it wins over the file's own GPS, so the share page and a reopened
+  // gallery show the corrected point, not the one the camera happened to record.
+  const coords = context && context.coords;
+  const hasContextCoords =
+    coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lon);
+  const photo = hasContextCoords
+    ? { ...exif, latitude: coords.lat, longitude: coords.lon }
+    : exif;
+
   // SOURCE: the photo's own data.
-  if (exif) {
+  if (photo) {
     fields.push(
-      source('time', 'Captured', formatClock(exif.capturedAt), 'clock',
-        exif.capturedAt != null, 'no timestamp'),
-      source('camera', 'Camera', formatCamera(exif), 'text',
-        Boolean(exif.make || exif.model), 'no camera info'),
-      source('exposure', 'Exposure', formatExposure(exif), 'exposure',
-        hasExposure(exif), 'no exposure data'),
-      source('bearing', 'Bearing', formatBearing(exif.bearing), 'degrees',
-        exif.bearing != null,
-        hasCoords(exif) ? 'no direction recorded' : 'no GPS in this file'),
-      source('altitude', 'Altitude', formatAltitude(exif.altitude), 'metres',
-        exif.altitude != null, 'no altitude recorded'),
-      source('coordinates', 'Coordinates', formatCoordinates(exif), 'coords',
-        hasCoords(exif), 'no GPS in this file')
+      source('time', 'Captured', formatClock(photo.capturedAt), 'clock',
+        photo.capturedAt != null, 'no timestamp'),
+      source('camera', 'Camera', formatCamera(photo), 'text',
+        Boolean(photo.make || photo.model), 'no camera info'),
+      source('exposure', 'Exposure', formatExposure(photo), 'exposure',
+        hasExposure(photo), 'no exposure data'),
+      source('bearing', 'Bearing', formatBearing(photo.bearing), 'degrees',
+        photo.bearing != null,
+        hasCoords(photo) ? 'no direction recorded' : 'no GPS in this file'),
+      source('altitude', 'Altitude', formatAltitude(photo.altitude), 'metres',
+        photo.altitude != null, 'no altitude recorded'),
+      source('coordinates', 'Coordinates', formatCoordinates(photo), 'coords',
+        hasCoords(photo), 'no GPS in this file')
     );
   }
 
@@ -78,7 +88,7 @@ export function buildFields(exif, hud, context = null) {
       value: available ? formatDerived(def.id, value) : null,
       format: def.format,
       available,
-      reason: available ? null : derivedReason(def.id, exif, value),
+      reason: available ? null : derivedReason(def.id, photo, value),
       enabled: available,
     });
   }

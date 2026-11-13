@@ -1284,6 +1284,11 @@ async function share() {
 // renders without querying the network again.
 function contextSnapshot() {
   const c = context || emptyContext();
+  const exif = state.exif || {};
+  const coords =
+    Number.isFinite(exif.latitude) && Number.isFinite(exif.longitude)
+      ? { lat: exif.latitude, lon: exif.longitude }
+      : null;
   return {
     place: c.place,
     weather: c.weather,
@@ -1291,6 +1296,9 @@ function contextSnapshot() {
     peaks: c.peaks ?? [],
     sun: c.sun,
     moon: c.moon,
+    // The pin may have been corrected on the map; carry the working point so the
+    // share view and a reopen agree with the editor instead of the raw EXIF.
+    coords,
   };
 }
 

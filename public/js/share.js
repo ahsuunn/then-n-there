@@ -122,6 +122,12 @@ function applyEnabledFields(list, stored) {
 
 function normalizeSnapshot(raw) {
   const c = raw && typeof raw === 'object' ? raw : {};
+  const coords =
+    c.coords &&
+    Number.isFinite(c.coords.lat) &&
+    Number.isFinite(c.coords.lon)
+      ? { lat: c.coords.lat, lon: c.coords.lon }
+      : null;
   return {
     place: c.place ?? null,
     weather: c.weather ?? null,
@@ -132,6 +138,8 @@ function normalizeSnapshot(raw) {
     peaks: Array.isArray(c.peaks) ? c.peaks : null,
     sun: c.sun ?? null,
     moon: c.moon ?? null,
+    // The corrected pin, when the author moved it on the map.
+    coords,
   };
 }
 
