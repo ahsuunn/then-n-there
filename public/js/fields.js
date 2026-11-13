@@ -1,142 +1,148 @@
-// Field registry builder. The single source of truth for sidebar rows and HUD
-// content. Takes the EXIF contract and returns one entry per displayable field
-// in SOURCE + DERIVED groups. The sidebar and the placeholder plate both read
-// this list; neither hardcodes a field name.
+// Field registry: the single source of truth for the sidebar rows and the HUD
+// content. Builds one entry per displayable field from the EXIF contract (and,
+// from phase 3 on, the reconstructed context). Neither the sidebar nor the
+// canvas hardcodes a field list.
 
-export function buildFields(exif) {
-  return [...sourceFields(exif), ...derivedFields()];
+const DERIVED = [
+  { id: 'place', label: 'Place', format: 'place' },
+  { id: 'weather', label: 'Weather', format: 'temp' },
+  { id: 'elevation', label: 'Elevation', format: 'metres' },
+  { id: 'peaks', label: 'Peaks', format: 'peaks' },
+  { id: 'sun', label: 'Sun', format: 'sun' },
+  { id: 'moon', label: 'Moon', format: 'moon' },
+];
+
+export function buildFields(exif, hud) {
+  const fields = [];
+
+  // SOURCE: the photo's own data.
+  if (exif) {
+    fields.push(
+      source('time', 'Captured', formatClock(exif.capturedAt), 'clock',
+        exif.capturedAt != null, 'no timestamp'),
+      source('camera', 'Camera', formatCamera(exif), 'text',
+        Boolean(exif.make || exif.model), 'no camera info'),
+      source('exposure', 'Exposure', formatExposure(exif), 'exposure',
+        hasExposure(exif), 'no exposure data'),
+      source('bearing', 'Bearing', formatBearing(exif.bearing), 'degrees',
+        exif.bearing != null,
+        hasCoords(exif) ? 'camera recorded no direction' : 'no GPS in this file'),
+      source('altitude', 'Altitude', formatAltitude(exif.altitude), 'metres',
+        exif.altitude != null, 'no altitude recorded'),
+      source('coordinates', 'Coordinates', formatCoordinates(exif), 'coords',
+        hasCoords(exif), 'no GPS in this file')
+    );
+  }
+
+  // DERIVED: resolved by phase 3 reconstruction. These placeholder rows keep
+  // the finished panel shape visible now.
+  for (const d of DERIVED) {
+    fields.push({
+      id: d.id,
+      group: 'derived',
+      label: d.label,
+      value: null,
+      format: d.format,
+      available: false,
+      reason: 'resolves in phase 3',
+      enabled: false,
+    });
+  }
+
+  // STYLE: hud config exposed as toggleable rows.
+  fields.push(
+    style('preset', 'Preset', hud.plateVisible ? 'Plate' : 'Off', hud.plateVisible),
+    style('tone', 'Tone', hud.tone === 'dark' ? 'Dark' : 'Light', hud.tone === 'dark')
+  );
+
+  return fields;
 }
 
-function sourceFields(exif) {
-  const e = exif || {};
-  const hasGps = e.latitude != null && e.longitude != null;
-
-  return [
-    {
-      id: 'time',
-      group: 'source',
-      label: 'Captured',
-      value: formatTime(e.capturedAt, e.offset),
-      format: 'clock',
-      available: e.capturedAt != null,
-      reason: e.capturedAt == null ? 'no timestamp in this file' : null,
-      enabled: true,
-    },
-    {
-      id: 'camera',
-      group: 'source',
-      label: 'Camera',
-      value: formatCamera(e.make, e.model),
-      format: 'camera',
-      available: e.make != null || e.model != null,
-      reason: e.make == null && e.model == null ? 'no camera metadata' : null,
-      enabled: true,
-    },
-    {
-      id: 'aperture',
-      group: 'source',
-      label: 'Aperture',
-      value: e.fNumber != null ? `f/${fmtNum(e.fNumber, 1)}` : null,
-      format: 'aperture',
-      available: e.fNumber != null,
-      reason: e.fNumber == null ? 'no aperture in this file' : null,
-      enabled: false,
-    },
-    {
-      id: 'shutter',
-      group: 'source',
-      label: 'Shutter',
-      value: formatShutter(e.exposureTime),
-      format: 'shutter',
-      available: e.exposureTime != null,
-      reason: e.exposureTime == null ? 'no shutter speed' : null,
-      enabled: false,
-    },
-    {
-      id: 'iso',
-      group: 'source',
-      label: 'ISO',
-      value: e.iso != null ? String(Math.round(e.iso)) : null,
-      format: 'iso',
-      available: e.iso != null,
-      reason: e.iso == null ? 'no ISO' : null,
-      enabled: false,
-    },
-    {
-      id: 'bearing',
-      group: 'source',
-      label: 'Bearing',
-      value: e.bearing != null ? `${Math.round(e.bearing)}\u00b0` : null,
-      format: 'bearing',
-      available: e.bearing != null,
-      reason: e.bearing == null ? 'no GPS in this file' : null,
-      enabled: false,
-    },
-    {
-      id: 'altitude',
-      group: 'source',
-      label: 'Altitude',
-      value: e.altitude != null ? `${Math.round(e.altitude)} m` : null,
-      format: 'metres',
-      available: e.altitude != null,
-      reason: e.altitude == null ? 'no GPS in this file' : null,
-      enabled: false,
-    },
-    {
-      id: 'coordinates',
-      group: 'source',
-      label: 'Coordinates',
-      value:
-        hasGps ? `${e.latitude.toFixed(5)}, ${e.longitude.toFixed(5)}` : null,
-      format: 'coords',
-      available: hasGps,
-      reason: !hasGps ? 'no GPS in this file' : null,
-      enabled: true,
-    },
-  ];
+export function enabledFieldIds(fields) {
+  return fields
+    .filter((f) => f.group !== 'style' && f.available && f.enabled)
+    .map((f) => f.id);
 }
 
-function derivedFields() {
-  const specs = [
-    ['place', 'Place', 'place'],
-    ['weather', 'Weather', 'temp'],
-    ['elevation', 'Elevation', 'metres'],
-    ['peaks', 'Peaks', 'peaks'],
-    ['sun', 'Sun', 'sun'],
-  ];
-  return specs.map(([id, label, format]) => ({
+function source(id, label, value, format, available, reason) {
+  return {
     id,
-    group: 'derived',
+    group: 'source',
     label,
-    value: null,
+    value,
     format,
-    available: false,
-    reason: 'resolves in phase 3',
-    enabled: false,
-  }));
+    available,
+    reason: available ? null : reason,
+    enabled: available,
+  };
 }
 
-// ---- value formatting (kept here so sidebar and HUD agree) ----
+function style(id, label, value, enabled) {
+  return {
+    id,
+    group: 'style',
+    label,
+    value,
+    format: 'text',
+    available: true,
+    reason: null,
+    enabled,
+  };
+}
 
-function formatTime(capturedAt, offset) {
+function hasCoords(exif) {
+  return exif.latitude != null && exif.longitude != null;
+}
+
+function hasExposure(exif) {
+  return exif.fNumber != null || exif.exposureTime != null || exif.iso != null;
+}
+
+function formatClock(capturedAt) {
   if (!capturedAt) return null;
-  const wall = capturedAt.replace('T', ' ');
-  return offset ? `${wall} ${offset}` : wall;
+  return capturedAt.replace('T', ' ');
 }
 
-function formatCamera(make, model) {
-  const parts = [make, model].filter(Boolean);
-  return parts.length ? parts.join(' ') : null;
+function formatCamera(exif) {
+  return [exif.make, exif.model].filter(Boolean).join(' ') || null;
+}
+
+function formatExposure(exif) {
+  const parts = [];
+  if (exif.fNumber != null) parts.push(`f/${trimNum(exif.fNumber)}`);
+  if (exif.exposureTime != null) parts.push(formatShutter(exif.exposureTime));
+  if (exif.iso != null) parts.push(`ISO ${Math.round(exif.iso)}`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 function formatShutter(seconds) {
-  if (seconds == null) return null;
-  if (seconds >= 1) return `${fmtNum(seconds, 1)} s`;
-  const denom = Math.round(1 / seconds);
-  return `1/${denom} s`;
+  if (seconds < 1) return `1/${Math.round(1 / seconds)}s`;
+  return `${trimNum(seconds)}s`;
 }
 
-function fmtNum(value, maxDecimals) {
-  const factor = 10 ** maxDecimals;
-  return String(Math.round(value * factor) / factor);
+function formatBearing(bearing) {
+  if (bearing == null) return null;
+  return `${Math.round(bearing)}° ${compass(bearing)}`;
+}
+
+function compass(deg) {
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const idx = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+  return dirs[idx];
+}
+
+function formatAltitude(altitude) {
+  if (altitude == null) return null;
+  return `${trimNum(altitude)} m`;
+}
+
+function formatCoordinates(exif) {
+  if (!hasCoords(exif)) return null;
+  const lat = `${Math.abs(exif.latitude).toFixed(4)}° ${exif.latitude >= 0 ? 'N' : 'S'}`;
+  const lon = `${Math.abs(exif.longitude).toFixed(4)}° ${exif.longitude >= 0 ? 'E' : 'W'}`;
+  return `${lat}, ${lon}`;
+}
+
+function trimNum(n) {
+  return Number(n.toFixed(2)).toString();
 }
