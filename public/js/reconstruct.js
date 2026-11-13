@@ -9,13 +9,13 @@
 import SunCalc from 'https://cdn.jsdelivr.net/npm/suncalc@1.9.0/+esm';
 
 const TIMEOUT_MS = 15000;
+const PEAKS_TIMEOUT_MS = 25000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_PREFIX = 'tnt:reconstruct:v1';
 const USER_AGENT = 'then-n-there/0.1 (student project)';
 
 const PEAK_RADIUS_M = 15000;
 const PEAK_BEARING_TOLERANCE_DEG = 25;
-const PEAK_RETRY_DELAYS_MS = [1000, 2000, 4000];
 const PEAK_LIMIT = 3;
 
 // Which derived rows this photo can actually attempt. The editor shows these
@@ -147,10 +147,10 @@ async function lookupElevation(exif) {
 async function lookupPeaks(exif) {
   try {
     return await cached('peaks', exif, async () => {
-      // One 15s budget for the whole lookup, retries included, so a server at
-      // capacity cannot keep the row pending for a minute.
+      // Overpass is the slowest source by far: the proxy may rotate mirrors
+      // and retry, so this lookup gets a longer budget than the others.
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), PEAKS_TIMEOUT_MS);
       try {
         const data = await fetchPeaks(exif, controller.signal);
         const elements = Array.isArray(data.elements) ? data.elements : [];
@@ -197,34 +197,12 @@ async function lookupPeaks(exif) {
 }
 
 async function fetchPeaks(exif, signal) {
-  const query =
-    '[out:json][timeout:20];' +
-    `node["natural"="peak"](around:${PEAK_RADIUS_M},` +
-    `${exif.latitude},${exif.longitude});out body 50;`;
-
-  let lastError = null;
-  for (let attempt = 0; attempt <= PEAK_RETRY_DELAYS_MS.length; attempt++) {
-    try {
-      return await getJson('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        signal,
-        headers: {
-          // Browsers drop User-Agent, but the header is honest where it is
-          // allowed to travel and documents the intent next to the request.
-          'User-Agent': USER_AGENT,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({ data: query }),
-      });
-    } catch (err) {
-      lastError = err;
-      const delay = PEAK_RETRY_DELAYS_MS[attempt];
-      if (delay == null || signal.aborted) break;
-      await sleep(delay);
-      if (signal.aborted) break;
-    }
-  }
-  throw lastError || new Error('peak lookup failed');
+  // Overpass is called through the server: the public instances either lack
+  // CORS headers or answer 502 at capacity, and the proxy caches the result.
+  const url =
+    '/api/peaks' +
+    `?lat=${exif.latitude}&lon=${exif.longitude}&radius=${PEAK_RADIUS_M}`;
+  return getJson(url, { method: 'GET', signal });
 }
 
 function computeSky(exif) {
