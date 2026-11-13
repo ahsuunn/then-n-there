@@ -34,22 +34,24 @@ then-n-there/
     db.js                 sqlite open + schema + queries
     uploads.js            multer config, mime sniff, size cap
     slug.js               slug generation
+    peaks.js              Overpass proxy, mirrors, 24h cache
   public/
     index.html            editor
     share.html            share view
-    css/app.css
-    js/main.js            editor wiring
+    css/app.css           tokens and editor styles
+    js/state.js           single app state store with set() and subscribe()
+    js/fields.js          field registry builder (EXIF + context)
     js/exif.js            exifr wrapper, returns the EXIF contract
-    js/reconstruct.js     the four lookups, independent, cached
-    js/map.js             leaflet setup, pin drag, picker fallback
-    js/hud.js             canvas renderer, shared by editor and share view
-    js/export.js          native-resolution render, toBlob, download
+    js/reconstruct.js     the lookups, independent, cached
     js/wmo.js             weather code text
+    js/editor.js          editor wiring: sidebar, toggles, canvas
     js/ui.js              dom helpers, toasts, loading states
+    js/share.js           share view
   data/                   gitignored: app.db, uploads/
 ```
 
-`js/hud.js` is the single renderer used by both `index.html` and `share.html`.
+The HUD renderer will live in `js/hud.js` and is shared by `index.html` and
+`share.html`. `js/fields.js` is the only place that decides which fields exist.
 
 ## Rules
 
@@ -59,4 +61,27 @@ then-n-there/
   `exifr`, `leaflet`, `suncalc`) requires a note in the README before it is
   added.
 - Do not touch `data/` or `.gitignore`.
-- Commit after each phase with a conventional commit message.
+
+## Commit rules
+
+- Commits are modular: one concern per commit, conventional prefix, imperative
+  subject.
+- Never bundle a feature into one commit. Split it into its parts and commit
+  each: the module, the route that exposes it, the client that calls it, and the
+  documentation that records it. A commit that touches `server/`, `public/` and
+  `README.md` at once is almost always three commits wearing one message.
+- Fixes that follow a feature go in their own commit, with the symptom in the
+  body.
+- Documentation changes are their own commit unless the change is a code comment.
+
+## Overpass and the peaks lookup
+
+- Never call an Overpass host from client code. Only one public instance sends
+  CORS headers, and all of them answer 502 when their workers are full, so a
+  browser request fails unpredictably.
+- Peaks are resolved through `GET /api/peaks?lat=&lon=&radius=` on this server,
+  which rotates three mirrors, retries with backoff, validates the coordinates
+  and caches each answer for a day. Keep that path: the cache is what makes the
+  field survive a bad afternoon on the public instances.
+- When Overpass is down the row must degrade to a specific reason, never a
+  spinner that never resolves.
