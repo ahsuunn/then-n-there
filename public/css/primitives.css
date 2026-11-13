@@ -54,12 +54,12 @@
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0b0c0e;
+  color: var(--bg);
 }
 
 .btn-primary:hover {
-  background: #f7b87a;
-  border-color: #f7b87a;
+  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  border-color: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 
 /* ---- empty state (left-aligned, never a centred stack) ---- */
@@ -116,7 +116,8 @@
 
 .popover {
   position: fixed;
-  min-width: 300px;
+  min-width: min(300px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
   padding: 12px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -209,16 +210,46 @@
 }
 
 .toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   font-size: 13px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 10px 14px;
-  max-width: 360px;
+  padding: 10px 10px 10px 14px;
+  max-width: min(360px, calc(100vw - 32px));
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 140ms ease-out, transform 140ms ease-out;
+}
+
+.toast-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: -1px -2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 140ms ease-out, color 140ms ease-out;
+}
+
+.toast-close:hover {
+  background: var(--raised);
+  color: var(--ink);
 }
 
 .toast-in {
@@ -234,4 +265,13 @@
 .toast-error {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.toast-error .toast-close {
+  color: var(--danger);
+}
+
+.toast-error .toast-close:hover {
+  background: var(--raised);
+  color: var(--ink);
 }

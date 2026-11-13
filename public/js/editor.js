@@ -28,7 +28,7 @@ import { toast, setBusy } from './ui.js';
 
 const MAX_BYTES = 15 * 1024 * 1024;
 const SNAP_SCREEN_PX = 24;
-const RECENT_LIMIT = 50;
+const RECENT_LIMIT = 20;
 const DEFAULT_ACCENT = '#f0a75c';
 const HUD_ALIGNMENTS = ['left', 'right', 'center'];
 const PRESET_LABELS = { plate: 'Plate', corner: 'Corner', strip: 'Strip' };
@@ -36,6 +36,14 @@ const TONE_OPTIONS = [
   { value: 'dark', label: 'Dark' },
   { value: 'light', label: 'Light' },
 ];
+const LOOKUP_LABELS = {
+  place: 'place',
+  weather: 'weather',
+  elevation: 'elevation',
+  peaks: 'peaks',
+  sun: 'sun position',
+  moon: 'moon position',
+};
 
 const els = {
   app: document.getElementById('app'),
@@ -60,6 +68,7 @@ const els = {
   shareUrl: document.getElementById('shareUrl'),
   copyButton: document.getElementById('copyButton'),
   openLink: document.getElementById('openLink'),
+  progress: document.getElementById('progress'),
 };
 
 const ctx = els.canvas.getContext('2d');
@@ -222,22 +231,43 @@ async function decodeImage(file) {
 async function resolveContext(exif, token) {
   if (pendingIds.size === 0) return;
 
-  const result = await reconstructContext(exif, {
-    onResult(kind, value) {
-      if (token !== runToken) return;
-      if (!context) context = emptyContext();
-      context[kind] = value;
-      pendingIds.delete(kind);
-      state.context = context;
+  // Remember what this photo attempted. When the run settles, a null network
+  // result is a real failure and gets one summary toast; the rows keep the
+  // per-source reason either way.
+  const attempted = new Set(pendingIds);
 
+  let result;
+  try {
+    result = await reconstructContext(exif, {
+      onResult(kind, value) {
+        if (token !== runToken) return;
+        if (!context) context = emptyContext();
+        context[kind] = value;
+        pendingIds.delete(kind);
+        state.context = context;
+
+        rebuildFields();
+        renderGroup(
+          els.groupDerived,
+          state.fields.filter((f) => f.group === 'derived'),
+          'derived'
+        );
+        renderCanvas();
+      },
+    });
+  } catch {
+    if (token === runToken) {
+      pendingIds = new Set();
       rebuildFields();
-      renderGroup(
-        els.groupDerived,
-        state.fields.filter((f) => f.group === 'derived')
-      );
+      renderSidebar();
       renderCanvas();
-    },
-  });
+      toast(
+        'Could not reconstruct the context. Each derived row shows why.',
+        'error'
+      );
+    }
+    return;
+  }
 
   if (token !== runToken) return;
   context = result;
@@ -246,6 +276,23 @@ async function resolveContext(exif, token) {
   rebuildFields();
   renderSidebar();
   renderCanvas();
+
+  const failed = [...attempted].filter((id) =>
+    id === 'peaks' ? result.peaks == null : result[id] == null
+  );
+  if (failed.length > 0) {
+    toast(
+      `Could not reconstruct ${listNames(failed)}. Each row shows the reason.`,
+      'error'
+    );
+  }
+}
+
+function listNames(ids) {
+  const names = ids.map((id) => LOOKUP_LABELS[id] || id);
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
 }
 
 function emptyContext() {
@@ -333,11 +380,13 @@ async function applyMapPoint({ latitude, longitude }) {
   rebuildFields();
   renderGroup(
     els.groupSource,
-    state.fields.filter((field) => field.group === 'source')
+    state.fields.filter((field) => field.group === 'source'),
+    'source'
   );
   renderGroup(
     els.groupDerived,
-    state.fields.filter((field) => field.group === 'derived')
+    state.fields.filter((field) => field.group === 'derived'),
+    'derived'
   );
   renderCanvas();
 
@@ -352,7 +401,8 @@ async function applyMapPoint({ latitude, longitude }) {
   rebuildFields();
   renderGroup(
     els.groupDerived,
-    state.fields.filter((field) => field.group === 'derived')
+    state.fields.filter((field) => field.group === 'derived'),
+    'derived'
   );
   renderCanvas();
 
@@ -363,19 +413,132 @@ async function applyMapPoint({ latitude, longitude }) {
 // ---- sidebar ----
 
 function renderSidebar() {
-  renderGroup(els.groupSource, state.fields.filter((f) => f.group === 'source'));
-  renderGroup(els.groupDerived, state.fields.filter((f) => f.group === 'derived'));
+  renderGroup(
+    els.groupSource,
+    state.fields.filter((f) => f.group === 'source'),
+    'source'
+  );
+  renderGroup(
+    els.groupDerived,
+    state.fields.filter((f) => f.group === 'derived'),
+    'derived'
+  );
   renderStyleGroup();
   els.shareButton.disabled = !state.image;
   els.exportButton.disabled = !state.image;
   els.exportMenuButton.disabled = !state.image;
 }
 
-function renderGroup(container, fields) {
+function renderGroup(container, fields, group = null) {
+  // Reconstruction repaints one group at a time. Keep the focused control if it
+  // belongs to the group being replaced, so keyboard users do not lose their
+  // place when a lookup lands.
+  const focus = captureFocus(container);
+  syncProgress();
+
   container.textContent = '';
   const frag = document.createDocumentFragment();
   for (const field of fields) frag.appendChild(buildRow(field));
+
+  const note = groupNote(group, fields);
+  if (note) {
+    const p = document.createElement('p');
+    p.className = 'group-note';
+    p.textContent = note;
+    frag.appendChild(p);
+  }
+
   container.appendChild(frag);
+  restoreFocus(container, focus);
+}
+
+// Empty states inside the sidebar. Each one names what is missing and what the
+// user can do next, instead of leaving a labelled group blank.
+function groupNote(group, fields) {
+  if (group === 'source' && !state.image) {
+    return 'No photo loaded. Drop a JPEG or PNG to read its own EXIF.';
+  }
+
+  if (group === 'derived' && state.image && !hasGps(state.exif)) {
+    return 'No GPS in this file. Open Map on the Coordinates row to place the photo.';
+  }
+
+  if (
+    group === 'derived' &&
+    state.image &&
+    hasGps(state.exif) &&
+    pendingIds.size === 0
+  ) {
+    const peaks = fields.find((field) => field.id === 'peaks');
+    if (
+      peaks &&
+      !peaks.available &&
+      context &&
+      Array.isArray(context.peaks) &&
+      context.peaks.length === 0
+    ) {
+      return 'No named peaks found within 15 km of this point.';
+    }
+  }
+
+  return null;
+}
+
+function hasGps(exif) {
+  return Boolean(exif && exif.latitude != null && exif.longitude != null);
+}
+
+// The top-bar line is visible exactly while derived lookups are outstanding.
+function syncProgress() {
+  if (!els.progress) return;
+  els.progress.hidden = pendingIds.size === 0;
+}
+
+// Describe the focused control in a way that survives a group rebuild: an id
+// when the control has one, otherwise its row plus a stable class or value.
+function captureFocus(container) {
+  const active = document.activeElement;
+  if (!active || !container.contains(active)) return null;
+  if (active.id) return { id: active.id };
+
+  const row = active.closest('.row[data-id]');
+  if (!row) return null;
+  if (active.classList.contains('row-info')) {
+    return { row: row.dataset.id, selector: '.row-info' };
+  }
+  if (active.classList.contains('row-map')) {
+    return { row: row.dataset.id, selector: '.row-map' };
+  }
+  if (active.classList.contains('seg')) {
+    return {
+      row: row.dataset.id,
+      selector: `.seg[data-value="${cssEscape(active.dataset.value)}"]`,
+    };
+  }
+  return null;
+}
+
+function restoreFocus(container, key) {
+  if (!key) return;
+
+  let target = key.id ? container.querySelector(`#${cssEscape(key.id)}`) : null;
+  if (!target && key.row) {
+    const row = container.querySelector(
+      `.row[data-id="${cssEscape(key.row)}"]`
+    );
+    if (row && key.selector) target = row.querySelector(key.selector);
+  }
+
+  if (target && !target.disabled && typeof target.focus === 'function') {
+    target.focus({ preventScroll: true });
+  }
+}
+
+function cssEscape(value) {
+  if (globalThis.CSS && typeof CSS.escape === 'function') {
+    return CSS.escape(String(value));
+  }
+  return String(value).replace(/["\\]/g, '\\$&');
 }
 
 function buildRow(field) {
@@ -466,6 +629,8 @@ function buildRow(field) {
 // controls because a switch cannot express three presets; every other style
 // row still falls back to the registry switch.
 function renderStyleGroup() {
+  const focus = captureFocus(els.groupStyle);
+
   els.groupStyle.textContent = '';
   const frag = document.createDocumentFragment();
 
@@ -544,6 +709,7 @@ function renderStyleGroup() {
   frag.appendChild(position.row);
 
   els.groupStyle.appendChild(frag);
+  restoreFocus(els.groupStyle, focus);
 }
 
 function segmentedRow(id, label, options, value, onPick) {
@@ -1186,6 +1352,7 @@ function numberIn(value, min, max, fallback) {
 // js/export.js, which renders with the same js/hud.js as the preview.
 els.exportButton.addEventListener('click', () => exportPhoto('png'));
 els.exportMenuButton.addEventListener('click', toggleExportMenu);
+els.exportMenu.addEventListener('keydown', onExportMenuKeyDown);
 els.exportPng.addEventListener('click', () => {
   closeExportMenu();
   exportPhoto('png');
@@ -1218,6 +1385,16 @@ async function exportPhoto(format) {
     exporting = false;
     setBusy(els.exportButton, false);
     els.exportMenuButton.disabled = !state.image;
+    restoreIfLost(els.exportButton);
+  }
+}
+
+// Disabling the control that had focus moves focus to the body in several
+// browsers. After a busy action settles, put it back on the action button.
+function restoreIfLost(element) {
+  const active = document.activeElement;
+  if (!active || active === document.body) {
+    element.focus({ preventScroll: true });
   }
 }
 
@@ -1234,12 +1411,51 @@ function openExportMenu() {
   els.exportMenu.style.right = `${window.innerWidth - btn.right}px`;
   els.exportMenu.hidden = false;
   els.exportMenuButton.setAttribute('aria-expanded', 'true');
+  // Focus moves into the menu, so the next Tab continues from the format
+  // choices instead of jumping over them to the rest of the top bar.
+  els.exportPng.focus({ preventScroll: true });
 }
 
 function closeExportMenu() {
   if (els.exportMenu.hidden) return;
+  const hadFocus = els.exportMenu.contains(document.activeElement);
   els.exportMenu.hidden = true;
   els.exportMenuButton.setAttribute('aria-expanded', 'false');
+  if (hadFocus && !els.exportMenuButton.disabled) {
+    els.exportMenuButton.focus({ preventScroll: true });
+  }
+}
+
+function onExportMenuKeyDown(event) {
+  const items = [els.exportPng, els.exportJpeg];
+  const index = items.indexOf(document.activeElement);
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    closeExportMenu();
+    return;
+  }
+
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    closeExportMenu();
+    const next = event.shiftKey ? els.exportMenuButton : els.shareButton;
+    if (!next.disabled) next.focus({ preventScroll: true });
+    return;
+  }
+
+  let next = null;
+  if (event.key === 'ArrowDown') next = (index + 1) % items.length;
+  else if (event.key === 'ArrowUp') {
+    next = (index - 1 + items.length) % items.length;
+  } else if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = items.length - 1;
+
+  if (next != null) {
+    event.preventDefault();
+    items[next].focus({ preventScroll: true });
+  }
 }
 
 // ---- sharing ----
@@ -1274,10 +1490,27 @@ async function share() {
     showShare(data.slug);
     loadRecent();
   } catch (err) {
-    toast(err.message || 'Upload failed', 'error');
+    toast(shareErrorMessage(err), 'error');
   } finally {
     setBusy(els.shareButton, false);
+    restoreIfLost(els.shareButton);
   }
+}
+
+// A share can fail because the server rejected the file, because the network is
+// gone, or because the API returned an internal error. Always say which kind of
+// failure it was instead of leaving the button to quietly return to normal.
+function shareErrorMessage(err) {
+  const raw = err && typeof err.message === 'string' ? err.message.trim() : '';
+  if (
+    !raw ||
+    /^upload failed$/i.test(raw) ||
+    /^failed to fetch$/i.test(raw) ||
+    /internal server error/i.test(raw)
+  ) {
+    return 'Share failed. The photo could not be uploaded. Check the connection and try again.';
+  }
+  return `Share failed. ${raw.replace(/[.!?]+$/, '')}.`;
 }
 
 // The snapshot from PLAN.md section 4, saved with the gallery so a share page
@@ -1309,6 +1542,10 @@ function showShare(slug) {
   closeExportMenu();
   positionPopover();
   els.sharePopover.hidden = false;
+  // The popover is the result of the action: move focus into it so keyboard
+  // users can copy or open the link, and Escape returns to Share.
+  els.shareUrl.focus({ preventScroll: true });
+  els.shareUrl.select();
 }
 
 function positionPopover() {
@@ -1318,7 +1555,12 @@ function positionPopover() {
 }
 
 function closeShare() {
+  if (els.sharePopover.hidden) return;
+  const hadFocus = els.sharePopover.contains(document.activeElement);
   els.sharePopover.hidden = true;
+  if (hadFocus && !els.shareButton.disabled) {
+    els.shareButton.focus({ preventScroll: true });
+  }
 }
 
 function copyShareUrl() {
@@ -1327,7 +1569,9 @@ function copyShareUrl() {
     .then(() => toast('Link copied'))
     .catch(() => {
       els.shareUrl.select();
-      document.execCommand('copy');
+      const copied = document.execCommand('copy');
+      if (copied) toast('Link copied');
+      else toast('Could not copy the link. Select it and copy manually.', 'error');
     });
 }
 

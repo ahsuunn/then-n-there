@@ -4,6 +4,7 @@
 /* ---- top bar ---- */
 
 .topbar {
+  position: relative;
   height: 48px;
   flex: none;
   display: flex;
@@ -14,9 +15,25 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* A single accent line while any reconstruction lookup is in flight. The rows
+   carry the per-field detail; this is the page-level answer to "is it busy". */
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.progress[hidden] {
+  display: none;
+}
+
 .topbar-actions {
   display: flex;
   gap: 8px;
+  min-width: 0;
 }
 
 /* ---- export: one action plus a small format menu ---- */
@@ -104,6 +121,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  order: 1;
   background: var(--surface);
   border-right: 1px solid var(--line);
 }
@@ -118,6 +136,7 @@
   flex: 1;
   min-width: 0;
   display: flex;
+  order: 2;
   padding: 16px;
   background: var(--bg);
 }
@@ -154,7 +173,7 @@
 
 .stage canvas:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 /* ---- sidebar groups and rows ---- */
@@ -171,6 +190,15 @@
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* An empty state inside a group: say what is missing and what the user can do
+   about it, rather than leaving a labelled group blank. */
+.group-note {
+  margin: 4px 14px 2px;
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--muted);
 }
 
@@ -310,7 +338,7 @@
 
 .switch:checked::before {
   transform: translateX(14px);
-  background: #0b0c0e;
+  background: var(--bg);
 }
 
 .switch:focus-visible {
@@ -743,6 +771,7 @@
   .stage-wrap {
     order: 1;
     padding: 12px;
+    min-height: 0;
   }
 
   .sidebar {
@@ -751,9 +780,70 @@
     height: 42vh;
     border-right: none;
     border-top: 1px solid var(--line);
+    border-radius: 10px 10px 0 0;
+  }
+
+  .sidebar-scroll,
+  .recent {
+    overscroll-behavior: contain;
   }
 
   .empty-title {
     font-size: 20px;
+  }
+}
+
+/* The top bar has four actions. At phone widths the labels stay whole and the
+   wordmark gives up the space, so nothing clips or overflows sideways. */
+@media (max-width: 520px) {
+  .topbar {
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .wordmark {
+    flex: none;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+
+  .topbar-actions {
+    gap: 4px;
+  }
+
+  .topbar-actions .btn {
+    flex: none;
+    height: 34px;
+    padding: 0 9px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .export-control {
+    gap: 2px;
+  }
+
+  .btn-caret {
+    width: 24px;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar {
+    padding: 0 8px;
+  }
+
+  .wordmark {
+    font-size: 13px;
+  }
+
+  .stage-wrap {
+    padding: 8px;
+  }
+
+  .stage-empty {
+    top: 16px;
+    left: 16px;
+    right: 16px;
   }
 }

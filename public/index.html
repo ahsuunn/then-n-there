@@ -44,13 +44,74 @@
               <span class="caret" aria-hidden="true"></span>
             </button>
           </div>
+          <div
+            class="popover export-menu"
+            id="exportMenu"
+            role="menu"
+            aria-labelledby="exportMenuTitle"
+            hidden
+          >
+            <p class="popover-title" id="exportMenuTitle">Export format</p>
+            <button type="button" class="menu-item" id="exportPng" role="menuitem">
+              <span class="menu-label">PNG</span>
+              <span class="menu-note">full size, lossless</span>
+            </button>
+            <button type="button" class="menu-item" id="exportJpeg" role="menuitem">
+              <span class="menu-label">JPEG</span>
+              <span class="menu-note">full size, quality 0.92</span>
+            </button>
+          </div>
           <button type="button" class="btn btn-primary" id="shareButton" disabled>
             Share
           </button>
+          <div
+            class="popover"
+            id="sharePopover"
+            role="dialog"
+            aria-label="Share link"
+            hidden
+          >
+            <p class="popover-title">Share link</p>
+            <div class="popover-row">
+              <input type="text" class="popover-url" id="shareUrl" readonly />
+              <button type="button" class="btn" id="copyButton">Copy</button>
+            </div>
+            <a
+              class="popover-open"
+              id="openLink"
+              target="_blank"
+              rel="noopener"
+            >Open in a new tab</a>
+          </div>
         </div>
+        <div
+          class="progress"
+          id="progress"
+          role="progressbar"
+          aria-label="Resolving photo context"
+          hidden
+        ></div>
       </header>
 
       <div class="layout">
+        <main class="stage-wrap">
+          <div class="stage" id="stage">
+            <canvas
+              id="hudCanvas"
+              tabindex="0"
+              aria-label="Photo preview with the HUD plate. Drag the plate with the pointer, or use the arrow keys to nudge it."
+            ></canvas>
+            <div class="stage-empty" id="stageEmpty">
+              <p class="empty-title">Drop a photo</p>
+              <p class="empty-hint">JPEG or PNG with EXIF, up to 15 MB</p>
+              <button type="button" class="btn btn-primary" id="emptyPick">
+                Choose a file
+              </button>
+            </div>
+            <div class="drop-hint" id="dropHint">Drop to inspect</div>
+          </div>
+        </main>
+
         <aside class="sidebar">
           <div class="sidebar-scroll">
             <section class="group" aria-labelledby="source-label">
@@ -73,50 +134,6 @@
             <p class="recent-empty" id="recentEmpty">saved photos appear here</p>
           </footer>
         </aside>
-
-        <main class="stage-wrap">
-          <div class="stage" id="stage">
-            <canvas
-              id="hudCanvas"
-              tabindex="0"
-              aria-label="Photo preview with the HUD plate. Drag the plate with the pointer, or use the arrow keys to nudge it."
-            ></canvas>
-            <div class="stage-empty" id="stageEmpty">
-              <p class="empty-title">Drop a photo</p>
-              <p class="empty-hint">JPEG or PNG with EXIF, up to 15 MB</p>
-              <button type="button" class="btn btn-primary" id="emptyPick">
-                Choose a file
-              </button>
-            </div>
-            <div class="drop-hint" id="dropHint">Drop to inspect</div>
-          </div>
-        </main>
-      </div>
-
-      <div class="popover" id="sharePopover" hidden>
-        <p class="popover-title">Share link</p>
-        <div class="popover-row">
-          <input type="text" class="popover-url" id="shareUrl" readonly />
-          <button type="button" class="btn" id="copyButton">Copy</button>
-        </div>
-        <a
-          class="popover-open"
-          id="openLink"
-          target="_blank"
-          rel="noopener"
-        >Open in a new tab</a>
-      </div>
-
-      <div class="popover export-menu" id="exportMenu" role="menu" hidden>
-        <p class="popover-title">Export format</p>
-        <button type="button" class="menu-item" id="exportPng" role="menuitem">
-          <span class="menu-label">PNG</span>
-          <span class="menu-note">full size, lossless</span>
-        </button>
-        <button type="button" class="menu-item" id="exportJpeg" role="menuitem">
-          <span class="menu-label">JPEG</span>
-          <span class="menu-note">full size, quality 0.92</span>
-        </button>
       </div>
 
       <input type="file" id="fileInput" accept="image/jpeg,image/png" hidden />
