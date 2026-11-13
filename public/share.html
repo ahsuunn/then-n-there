@@ -4,22 +4,40 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Then &amp; There</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/primitives.css" />
     <link rel="stylesheet" href="/css/share.css" />
   </head>
   <body class="share">
-    <header class="site-header">
-      <h1>Then &amp; There</h1>
+    <header class="share-header">
+      <a class="share-home" href="/" title="Open the editor">
+        <span class="wordmark">Then <span class="wordmark-amp">&amp;</span> There</span>
+      </a>
+      <div class="share-actions">
+        <button type="button" class="btn" id="downloadButton" disabled>
+          Download
+        </button>
+      </div>
     </header>
 
     <main class="share-view">
-      <figure class="photo" id="photo" hidden>
-        <img id="image" alt="" />
-        <figcaption class="plate" id="plate"></figcaption>
-      </figure>
-      <p class="status" id="status" role="status" aria-live="polite">
+      <div class="share-stage" id="stage" hidden>
+        <canvas
+          id="hudCanvas"
+          aria-label="Saved photo with the HUD it was shared with"
+        ></canvas>
+      </div>
+      <p class="share-status" id="status" role="status" aria-live="polite">
         Loading...
+      </p>
+      <p class="share-note" id="note" hidden>
+        restored from EXIF and public data
       </p>
     </main>
 

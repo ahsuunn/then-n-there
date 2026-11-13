@@ -1,5 +1,19 @@
 /* Then & There. Shared UI primitives
-   Buttons, empty state, drop hint, popovers, toasts. Used by the editor and the share view. */
+   Wordmark, buttons, empty state, drop hint, popovers, toasts. Used by the
+   editor and the share view. */
+
+/* ---- wordmark (shared by the editor top bar and the share header) ---- */
+
+.wordmark {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.wordmark-amp {
+  color: var(--accent);
+}
 
 /* ---- buttons ---- */
 

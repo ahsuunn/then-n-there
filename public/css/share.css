@@ -1,48 +1,105 @@
 /* Then & There. Share view
-   Read-only surface for a saved gallery. Loads after primitives and shares the same tokens. */
+   Read-only surface for a saved gallery: the stored photo repainted by js/hud.js.
+   Shares the tokens and the primitives with the editor, and carries no editor
+   controls. */
 
-/* ---- share view (read-only surface, kept coherent with the dark theme) ---- */
-
-.site-header {
-  padding: 28px 24px 0;
+.share {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
-.site-header h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+/* ---- header: wordmark back to the editor, one action ---- */
+
+.share-header {
+  height: 48px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.share-home {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.share-home:hover .wordmark {
   color: var(--ink);
 }
+
+.share-home:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.share-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- the picture: one object on the neutral backdrop ---- */
 
 .share-view {
-  max-width: 960px;
-  margin: 24px auto 56px;
-  padding: 0 24px;
-}
-
-.share-view .photo {
-  margin: 0;
-}
-
-.share-view .photo img {
-  display: block;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
   width: 100%;
-  height: auto;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
 }
 
-.share-view .plate {
-  margin: 12px 0 0;
-  padding: 12px 14px;
+.share-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  width: fit-content;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--bg);
+}
+
+.share-stage[hidden] {
+  display: none;
+}
+
+/* The canvas holds the photo at its own pixel size. CSS only scales the
+   displayed box down, so the HUD text is rendered at full resolution. */
+.share-stage canvas {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 190px);
+}
+
+/* ---- footnote and status, both mono like every other reading ---- */
+
+.share-status,
+.share-note {
+  margin: 0;
   font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+}
+
+.share-status {
   font-size: 13px;
 }
 
-.share-view .status {
-  color: var(--muted);
+.share-note[hidden] {
+  display: none;
 }
