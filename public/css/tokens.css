@@ -1,0 +1,56 @@
+/* Then & There. Tokens and base styles
+   Custom properties, reset, base type, reduced motion. Loaded first by both pages. */
+
+/* Then & There editor. Command / Inspect surface: near-black page, one amber
+   accent, monospace numerals. Tokens are defined once here and used everywhere. */
+
+:root {
+  --bg: #0b0c0e;
+  --surface: #14161a;
+  --raised: #1c1f24;
+  --line: #2a2e35;
+  --ink: #e8eaed;
+  --muted: #9aa1ab;
+  --accent: #f0a75c;
+  --danger: #e5645f;
+
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ---- motion preference (global) ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
