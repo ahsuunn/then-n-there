@@ -1,10 +1,11 @@
-// Editor wiring: top bar, sidebar groups, canvas lifecycle, drop intake, and
-// the share action. The canvas and the sidebar both read the field registry;
-// neither hardcodes a field list.
+// Editor wiring: top bar, sidebar groups, canvas lifecycle, drop intake,
+// reconstruction and the share action. The canvas and the sidebar both read
+// the field registry; neither hardcodes a field list.
 
 import { state } from './state.js';
 import { readExif } from './exif.js';
-import { buildFields, enabledFieldIds } from './fields.js';
+import { buildFields, enabledFieldIds, fieldSource } from './fields.js';
+import { reconstructContext, pendingFieldIds } from './reconstruct.js';
 import { toast, setBusy } from './ui.js';
 
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -30,6 +31,14 @@ const els = {
 
 const ctx = els.canvas.getContext('2d');
 let imageBitmap = null; // decoded photo, drawn fit-to-box
+
+// Reconstruction state. `context` is the section 4 snapshot; `pendingIds` is
+// the set of derived rows still in flight; `runToken` discards stale results
+// when a new photo lands before the previous lookups finish.
+let context = null;
+let pendingIds = new Set();
+let runToken = 0;
+let sourcePopover = null;
 
 // ---- initial render (no photo yet) ----
 state.fields = buildFields(null, state.hud);
@@ -100,10 +109,16 @@ async function handleFile(file) {
   if (exif.height == null) exif.height = bitmap.height;
 
   imageBitmap = bitmap;
+  runToken += 1;
+  const token = runToken;
+  context = null;
+  pendingIds = new Set(pendingFieldIds(exif));
+
   const fields = buildFields(exif, state.hud);
   state.set({
     image: { file, width: bitmap.width, height: bitmap.height },
     exif,
+    context: null,
     fields,
   });
   state.hud.fields = enabledFieldIds(fields);
@@ -111,6 +126,8 @@ async function handleFile(file) {
   renderSidebar();
   renderCanvas();
   closeShare();
+
+  resolveContext(exif, token);
 }
 
 async function decodeImage(file) {
@@ -133,6 +150,67 @@ async function decodeImage(file) {
   });
 }
 
+// ---- reconstruction ----
+
+async function resolveContext(exif, token) {
+  if (pendingIds.size === 0) return;
+
+  const result = await reconstructContext(exif, {
+    onResult(kind, value) {
+      if (token !== runToken) return;
+      if (!context) context = emptyContext();
+      context[kind] = value;
+      pendingIds.delete(kind);
+      state.context = context;
+
+      rebuildFields();
+      renderGroup(
+        els.groupDerived,
+        state.fields.filter((f) => f.group === 'derived')
+      );
+      renderCanvas();
+    },
+  });
+
+  if (token !== runToken) return;
+  context = result;
+  pendingIds = new Set();
+  state.context = context;
+  rebuildFields();
+  renderSidebar();
+  renderCanvas();
+}
+
+function emptyContext() {
+  return {
+    place: null,
+    weather: null,
+    elevation: null,
+    peaks: null,
+    sun: null,
+    moon: null,
+  };
+}
+
+// Rebuild the registry after a lookup lands without resetting toggles the
+// user already made on rows that were available before.
+function rebuildFields() {
+  const previous = new Map();
+  for (const field of state.fields) {
+    if (field.available) previous.set(field.id, field.enabled);
+  }
+
+  const fields = buildFields(state.exif, state.hud, context);
+  for (const field of fields) {
+    if (field.available && previous.has(field.id)) {
+      field.enabled = previous.get(field.id);
+    }
+  }
+
+  state.fields = fields;
+  state.hud.fields = enabledFieldIds(fields);
+}
+
 // ---- sidebar ----
 
 function renderSidebar() {
@@ -150,8 +228,18 @@ function renderGroup(container, fields) {
 }
 
 function buildRow(field) {
+  const pending = pendingIds.has(field.id);
+
+  const row = document.createElement('div');
+  row.className =
+    'row' +
+    (field.available ? '' : ' is-unavailable') +
+    (pending ? ' is-pending' : '');
+  row.dataset.id = field.id;
+
   const label = document.createElement('label');
-  label.className = 'row' + (field.available ? '' : ' is-unavailable');
+  label.className = 'row-main';
+  label.htmlFor = `field-${field.id}`;
 
   const input = document.createElement('input');
   input.type = 'checkbox';
@@ -167,13 +255,86 @@ function buildRow(field) {
   name.className = 'row-label';
   name.textContent = field.label;
 
+  label.append(input, name);
+
   const value = document.createElement('span');
   value.className = 'row-value';
-  value.textContent = field.available ? field.value ?? '' : field.reason ?? '';
+  value.textContent = pending
+    ? 'resolving'
+    : field.available
+      ? field.value ?? ''
+      : field.reason ?? '';
 
-  label.append(input, name, value);
-  label.title = field.available ? field.label : field.reason ?? '';
-  return label;
+  row.append(label, value);
+
+  if (field.group !== 'style') {
+    const provenance = fieldSource(field, state.exif);
+    row.title = pending
+      ? `Resolving from ${provenance}`
+      : field.available
+        ? provenance
+        : `${field.reason ?? 'Unavailable'}. ${provenance}`;
+
+    const info = document.createElement('button');
+    info.type = 'button';
+    info.className = 'row-info';
+    info.textContent = 'i';
+    info.setAttribute('aria-label', `Source for ${field.label}`);
+    info.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showSource(field, info);
+    });
+    row.append(info);
+  }
+
+  return row;
+}
+
+function showSource(field, anchor) {
+  closeSource();
+
+  const popover = document.createElement('div');
+  popover.className = 'popover source-popover';
+
+  const title = document.createElement('p');
+  title.className = 'popover-title';
+  title.textContent = field.label;
+
+  const value = document.createElement('p');
+  value.className = 'popover-value';
+  value.textContent = field.available
+    ? field.value ?? ''
+    : field.reason ?? 'Unavailable';
+
+  const note = document.createElement('p');
+  note.className = 'popover-note';
+  note.textContent = fieldSource(field, state.exif);
+
+  popover.append(title, value, note);
+  document.body.append(popover);
+
+  const rect = anchor.getBoundingClientRect();
+  const width = popover.offsetWidth;
+  const height = popover.offsetHeight;
+  const left = Math.max(
+    12,
+    Math.min(rect.left - width + 36, window.innerWidth - width - 12)
+  );
+  const top = Math.max(
+    12,
+    Math.min(rect.bottom + 8, window.innerHeight - height - 12)
+  );
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+
+  sourcePopover = popover;
+}
+
+function closeSource() {
+  if (!sourcePopover) return;
+  sourcePopover.remove();
+  sourcePopover = null;
 }
 
 function onToggle(id, checked) {
@@ -360,12 +521,17 @@ async function share() {
   }
 }
 
+// The snapshot from PLAN.md section 4, saved with the gallery so a share page
+// renders without querying the network again.
 function contextSnapshot() {
-  const e = state.exif || {};
+  const c = context || emptyContext();
   return {
-    capturedAt: e.capturedAt ?? null,
-    latitude: e.latitude ?? null,
-    longitude: e.longitude ?? null,
+    place: c.place,
+    weather: c.weather,
+    elevation: c.elevation,
+    peaks: c.peaks ?? [],
+    sun: c.sun,
+    moon: c.moon,
   };
 }
 
@@ -405,10 +571,20 @@ document.addEventListener('click', (event) => {
   ) {
     closeShare();
   }
+  if (
+    sourcePopover &&
+    !sourcePopover.contains(event.target) &&
+    !event.target.closest('.row-info')
+  ) {
+    closeSource();
+  }
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeShare();
+  if (event.key === 'Escape') {
+    closeShare();
+    closeSource();
+  }
 });
 
 // ---- canvas keeps up with the stage and the font load ----
