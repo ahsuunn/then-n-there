@@ -1197,7 +1197,54 @@ function renderRecent(records) {
 
     meta.append(place, time);
     button.append(thumb, meta);
-    item.append(button);
+
+    // Deleting is deliberately two steps: the first click arms the row for a few
+    // seconds, the second removes it. No modal, and it works from the keyboard.
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'recent-delete';
+    remove.textContent = 'Delete';
+    remove.title = `Delete ${record.place || 'this gallery'}`;
+    remove.setAttribute('aria-label', `Delete ${record.place || 'this gallery'}`);
+
+    let armed = false;
+    let disarmTimer = 0;
+    const disarm = () => {
+      armed = false;
+      remove.classList.remove('is-armed');
+      remove.textContent = 'Delete';
+      clearTimeout(disarmTimer);
+    };
+
+    remove.addEventListener('click', async () => {
+      if (!armed) {
+        armed = true;
+        remove.classList.add('is-armed');
+        remove.textContent = 'Delete?';
+        disarmTimer = setTimeout(disarm, 4000);
+        return;
+      }
+
+      clearTimeout(disarmTimer);
+      remove.disabled = true;
+      try {
+        const res = await fetch(`/api/galleries/${record.slug}`, {
+          method: 'DELETE',
+        });
+        if (!res.ok && res.status !== 404) {
+          throw new Error('delete failed');
+        }
+        item.remove();
+        if (!els.recentList.children.length) els.recentEmpty.hidden = false;
+        toast('Gallery deleted', 'info');
+      } catch (err) {
+        remove.disabled = false;
+        disarm();
+        toast(err.message || 'Could not delete the gallery', 'error');
+      }
+    });
+
+    item.append(button, remove);
     frag.appendChild(item);
   }
   els.recentList.appendChild(frag);

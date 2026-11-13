@@ -496,6 +496,56 @@
 
 .recent-item {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 8px;
+}
+
+/* Quiet until the row is hovered or the button is focused by keyboard, then
+   loud once armed. Two clicks, four seconds to change your mind. */
+.recent-delete {
+  flex: none;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease-out, color 140ms ease-out,
+    background 140ms ease-out, border-color 140ms ease-out;
+}
+
+.recent-item:hover .recent-delete,
+.recent-delete:focus-visible,
+.recent-delete.is-armed {
+  opacity: 1;
+}
+
+.recent-delete:hover {
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.recent-delete.is-armed {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(229, 100, 95, 0.08);
+}
+
+.recent-delete:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.recent-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .recent-row {
