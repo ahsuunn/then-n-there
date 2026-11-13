@@ -7,70 +7,72 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/css/app.css" />
   </head>
-  <body class="editor-page">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-name">Then &amp; There</span>
-        <span class="brand-version">v0.1</span>
+  <body>
+    <div class="app" id="app">
+      <header class="topbar">
+        <span class="wordmark">Then <span class="wordmark-amp">&amp;</span> There</span>
+        <div class="topbar-actions">
+          <button type="button" class="btn" id="pickButton">Add photo</button>
+          <button type="button" class="btn btn-primary" id="shareButton" disabled>
+            Share
+          </button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <div class="sidebar-scroll">
+            <section class="group" aria-labelledby="source-label">
+              <h2 class="group-label" id="source-label">Source</h2>
+              <div class="group-rows" id="group-source"></div>
+            </section>
+            <section class="group" aria-labelledby="derived-label">
+              <h2 class="group-label" id="derived-label">Derived</h2>
+              <div class="group-rows" id="group-derived"></div>
+            </section>
+            <section class="group" aria-labelledby="style-label">
+              <h2 class="group-label" id="style-label">Style</h2>
+              <div class="group-rows" id="group-style"></div>
+            </section>
+          </div>
+        </aside>
+
+        <main class="stage-wrap">
+          <div class="stage" id="stage">
+            <canvas id="hudCanvas"></canvas>
+            <div class="stage-empty" id="stageEmpty">
+              <p class="empty-title">Drop a photo</p>
+              <p class="empty-hint">JPEG or PNG with EXIF, up to 15 MB</p>
+              <button type="button" class="btn btn-primary" id="emptyPick">
+                Choose a file
+              </button>
+            </div>
+            <div class="drop-hint" id="dropHint">Drop to inspect</div>
+          </div>
+        </main>
       </div>
-      <div class="actions">
-        <button type="button" id="openButton" class="button">Open photo</button>
-        <button type="button" id="shareButton" class="button button--accent" disabled>
-          Share
-        </button>
+
+      <div class="popover" id="sharePopover" hidden>
+        <p class="popover-title">Share link</p>
+        <div class="popover-row">
+          <input type="text" class="popover-url" id="shareUrl" readonly />
+          <button type="button" class="btn" id="copyButton">Copy</button>
+        </div>
+        <a
+          class="popover-open"
+          id="openLink"
+          target="_blank"
+          rel="noopener"
+        >Open in a new tab</a>
       </div>
+
       <input type="file" id="fileInput" accept="image/jpeg,image/png" hidden />
-    </header>
-
-    <div class="workspace">
-      <aside class="sidebar" id="sidebar" aria-label="Photo fields">
-        <div class="sidebar-scroll">
-          <section class="group" aria-labelledby="sourceHeading">
-            <h2 class="group-title" id="sourceHeading">Source</h2>
-            <div class="group-body" id="sourceBody"></div>
-          </section>
-
-          <section class="group" aria-labelledby="derivedHeading">
-            <h2 class="group-title" id="derivedHeading">Derived</h2>
-            <div class="group-body" id="derivedBody"></div>
-          </section>
-
-          <section class="group" aria-labelledby="styleHeading">
-            <h2 class="group-title" id="styleHeading">Style</h2>
-            <div class="group-body" id="styleBody"></div>
-          </section>
-        </div>
-      </aside>
-
-      <section class="canvas-area" id="canvasArea">
-        <canvas id="canvas" aria-label="Photo preview"></canvas>
-        <div class="empty" id="emptyState">
-          <p class="empty-title">No photo loaded</p>
-          <p class="empty-hint">
-            Drop a JPEG or PNG anywhere, or choose one to read its EXIF.
-          </p>
-          <button type="button" id="pickButton" class="button">Choose a file</button>
-        </div>
-      </section>
     </div>
-
-    <div class="popover" id="sharePopover" hidden>
-      <p class="popover-title">Share link</p>
-      <div class="popover-url-row">
-        <input type="text" id="shareUrl" class="popover-url" readonly />
-        <button type="button" id="copyButton" class="button button--small">Copy</button>
-      </div>
-      <a id="openLink" class="popover-link" target="_blank" rel="noopener">
-        Open in a new tab
-      </a>
-    </div>
-
-    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <script type="module" src="/js/editor.js"></script>
   </body>

@@ -1,128 +1,97 @@
-// exifr wrapper. Returns the EXIF contract from PLAN.md section 4 with nulls
-// for anything missing, and never throws: every failure resolves to an
-// empty contract so a corrupt or metadata-free file still loads its pixels.
-//
-// exifr is a single pinned ES module loaded lazily from a CDN, so a dropped
-// file parses without a build step and without blocking first paint.
+// EXIF intake. Wraps exifr so the rest of the app never touches exifr's raw
+// output shape. Always resolves to the EXIF contract with nulls for anything
+// missing, and never throws: a photo without EXIF still renders and exports.
 
-const EXIFR_URL = 'https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.esm.mjs';
+import { parse } from 'https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.esm.mjs';
 
-let exifrPromise = null;
+const emptyContract = () => ({
+  latitude: null,
+  longitude: null,
+  capturedAt: null,
+  offset: null,
+  altitude: null,
+  bearing: null,
+  focalLength: null,
+  fNumber: null,
+  exposureTime: null,
+  iso: null,
+  make: null,
+  model: null,
+  width: null,
+  height: null,
+});
 
-function loadExifr() {
-  if (!exifrPromise) {
-    exifrPromise = import(EXIFR_URL).then((mod) => mod.parse);
-  }
-  return exifrPromise;
-}
-
-export function emptyExif() {
-  return {
-    latitude: null,
-    longitude: null,
-    capturedAt: null,
-    offset: null,
-    altitude: null,
-    bearing: null,
-    focalLength: null,
-    fNumber: null,
-    exposureTime: null,
-    iso: null,
-    make: null,
-    model: null,
-    width: null,
-    height: null,
-    error: null,
-  };
-}
-
-export async function parseExif(file) {
-  const result = emptyExif();
+export async function readExif(file) {
+  const out = emptyContract();
   try {
-    const parse = await loadExifr();
+    // reviveValues: false keeps DateTimeOriginal as the raw local wall-clock
+    // string, so capturedAt stays faithful to what the camera wrote instead of
+    // being shifted into the browser timezone.
     const data = await parse(file, {
       gps: true,
       exif: true,
+      ifd0: true,
+      translateValues: true,
       reviveValues: false,
     });
-    applyTags(result, data);
-  } catch (err) {
-    result.error = 'could not read EXIF';
+    if (!data) return out;
+
+    out.latitude = numOrNull(data.latitude);
+    out.longitude = numOrNull(data.longitude);
+    out.capturedAt = toIsoLocal(data.DateTimeOriginal);
+    out.offset = normalizeOffset(data.OffsetTimeOriginal ?? data.OffsetTime);
+    out.altitude = signedAltitude(data.GPSAltitude, data.GPSAltitudeRef);
+    out.bearing = numOrNull(data.GPSImgDirection);
+    out.focalLength = numOrNull(data.FocalLength);
+    out.fNumber = numOrNull(data.FNumber);
+    out.exposureTime = numOrNull(data.ExposureTime);
+    out.iso = numOrNull(data.ISO);
+    out.make = strOrNull(data.Make);
+    out.model = strOrNull(data.Model);
+    out.width = intOrNull(data.ImageWidth ?? data.ExifImageWidth);
+    out.height = intOrNull(data.ImageHeight ?? data.ExifImageHeight);
+  } catch {
+    // EXIF is optional.
   }
-  return result;
+  return out;
 }
 
-function applyTags(out, data) {
-  if (!data || typeof data !== 'object') return;
-
-  out.latitude = num(data.latitude);
-  out.longitude = num(data.longitude);
-  out.altitude = num(data.altitude) ?? num(data.GPSAltitude);
-  out.bearing = num(data.GPSImgDirection) ?? num(data.GPSImgDirectionRef);
-  out.focalLength = num(data.FocalLength) ?? num(data.FocalLengthIn35mmFormat);
-  out.fNumber = num(data.FNumber) ?? num(data.ApertureValue);
-  out.exposureTime = num(data.ExposureTime);
-  out.iso = num(data.ISO) ?? num(data.PhotographicSensitivity);
-  out.make = str(data.Make);
-  out.model = str(data.Model);
-  out.width =
-    num(data.ImageWidth) ??
-    num(data.ExifImageWidth) ??
-    num(data.PixelXDimension);
-  out.height =
-    num(data.ImageHeight) ??
-    num(data.ExifImageHeight) ??
-    num(data.PixelYDimension);
-
-  const datetime =
-    str(data.DateTimeOriginal) ||
-    str(data.CreateDate) ||
-    str(data.DateTimeDigitized);
-  const offset =
-    str(data.OffsetTimeOriginal) ||
-    str(data.OffsetTime) ||
-    str(data.OffsetTimeDigitized);
-
-  out.capturedAt = formatCapturedAt(datetime);
-  out.offset = normalizeOffset(offset);
+function numOrNull(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function num(value) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
+function intOrNull(value) {
+  const n = numOrNull(value);
+  return n === null ? null : Math.round(n);
 }
 
-function str(value) {
-  if (typeof value === 'string') return value.trim() || null;
-  if (value === null || value === undefined) return null;
-  const s = String(value).trim();
-  return s || null;
+function strOrNull(value) {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 }
 
-// "2024:05:01 12:30:00" -> "2024-05-01T12:30:00". Kept as the local wall
-// clock; the UTC offset travels separately in `offset`.
-function formatCapturedAt(datetime) {
-  if (!datetime) return null;
-  if (datetime instanceof Date && !Number.isNaN(datetime.getTime())) {
-    const p = (n) => String(n).padStart(2, '0');
-    return (
-      `${datetime.getFullYear()}-${p(datetime.getMonth() + 1)}-${p(datetime.getDate())}` +
-      `T${p(datetime.getHours())}:${p(datetime.getMinutes())}:${p(datetime.getSeconds())}`
-    );
-  }
-  const m = /^(\d{4})[:/-](\d{2})[:/-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(
-    String(datetime)
-  );
+// GPSAltitudeRef 1 means below sea level.
+function signedAltitude(altitude, ref) {
+  const n = numOrNull(altitude);
+  if (n === null) return null;
+  return ref === 1 ? -n : n;
+}
+
+// "2023:05:01 14:30:00" or "2023-05-01 14:30:00" -> "2023-05-01T14:30:00".
+function toIsoLocal(raw) {
+  if (typeof raw !== 'string') return null;
+  const m = raw
+    .trim()
+    .match(/^(\d{4})[-:](\d{2})[-:](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
   if (!m) return null;
-  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`;
+  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6] || '00'}`;
 }
 
-// "+09:00", "+0900" -> "+09:00". Anything else -> null.
+// "+9", "+09:00", "Z" -> "+09:00".
 function normalizeOffset(offset) {
-  if (!offset) return null;
-  const m = /^([+-])(\d{2}):?(\d{2})$/.exec(String(offset).trim());
-  if (!m) return null;
-  return `${m[1]}${m[2]}:${m[3]}`;
+  if (typeof offset !== 'string') return null;
+  const t = offset.trim();
+  if (/^z$/i.test(t)) return '+00:00';
+  const m = t.match(/^([+-])(\d{1,2}):?(\d{2})?$/);
+  if (!m) return t || null;
+  return `${m[1]}${m[2].padStart(2, '0')}:${m[3] || '00'}`;
 }

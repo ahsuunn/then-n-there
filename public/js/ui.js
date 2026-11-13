@@ -1,40 +1,43 @@
-// DOM helpers: escaping, toast, busy states. No framework, no dependencies.
+// Small DOM helpers: toasts and button busy states. Dependency-free.
 
-export function esc(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
+let toastRoot = null;
 
-export function clear(node) {
-  while (node.firstChild) node.removeChild(node.firstChild);
-  return node;
-}
+export function toast(message, type = 'info') {
+  const root = getToastRoot();
+  const item = document.createElement('div');
+  item.className = `toast toast-${type}`;
+  item.setAttribute('role', 'status');
+  item.textContent = message;
+  root.appendChild(item);
 
-let toastTimer = null;
-
-export function toast(message, kind = 'info') {
-  const node = document.getElementById('toast');
-  if (!node) return;
-  node.textContent = message;
-  node.className = 'toast' + (kind === 'error' ? ' toast--error' : '');
-  node.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    node.hidden = true;
+  requestAnimationFrame(() => item.classList.add('toast-in'));
+  window.setTimeout(() => {
+    item.classList.remove('toast-in');
+    item.classList.add('toast-out');
+    item.addEventListener('transitionend', () => item.remove(), { once: true });
+    // Fallback removal if the transition never fires.
+    window.setTimeout(() => item.remove(), 500);
   }, 3200);
 }
 
-export function setBusy(button, busy, busyLabel = 'Working...') {
+function getToastRoot() {
+  if (!toastRoot) {
+    toastRoot = document.createElement('div');
+    toastRoot.className = 'toasts';
+    toastRoot.setAttribute('aria-live', 'polite');
+    document.body.appendChild(toastRoot);
+  }
+  return toastRoot;
+}
+
+export function setBusy(button, busy, busyLabel = 'Working') {
+  if (!button) return;
   if (busy) {
-    if (!button.dataset.label) button.dataset.label = button.textContent;
+    button.dataset.idleLabel = button.textContent;
     button.textContent = busyLabel;
     button.disabled = true;
   } else {
-    if (button.dataset.label) button.textContent = button.dataset.label;
+    button.textContent = button.dataset.idleLabel || button.textContent;
     button.disabled = false;
   }
 }
