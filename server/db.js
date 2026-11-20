@@ -10,11 +10,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR =
   process.env.TNT_DATA_DIR || path.join(__dirname, '..', 'data');
 export const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+// One 96px JPEG per gallery, captured by the editor at share time. The Recent
+// list reads these instead of decoding a full photo for every row.
+export const THUMBS_DIR = path.join(DATA_DIR, 'thumbs');
 const DB_PATH = path.join(DATA_DIR, 'app.db');
 
-// Create the data and uploads folders on boot if they are missing.
+// Create the data, uploads and thumbs folders on boot if they are missing.
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+fs.mkdirSync(THUMBS_DIR, { recursive: true });
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
@@ -27,9 +31,17 @@ db.exec(`
     image_width INTEGER,
     image_height INTEGER,
     hud_config TEXT NOT NULL,
-    context TEXT NOT NULL
+    context TEXT NOT NULL,
+    thumb_path TEXT
   );
 `);
+
+// A database created before thumbnails existed has no thumb_path column. Check
+// the live schema and add the column in place, so an upgrade never drops rows.
+const galleryColumns = db.prepare('PRAGMA table_info(galleries)').all();
+if (!galleryColumns.some((column) => column.name === 'thumb_path')) {
+  db.exec('ALTER TABLE galleries ADD COLUMN thumb_path TEXT');
+}
 
 export function slugExists(slug) {
   const row = db.prepare('SELECT 1 FROM galleries WHERE slug = ?').get(slug);
@@ -39,9 +51,9 @@ export function slugExists(slug) {
 export function insertGallery(record) {
   const stmt = db.prepare(`
     INSERT INTO galleries
-      (slug, created_at, image_path, image_width, image_height, hud_config, context)
+      (slug, created_at, image_path, image_width, image_height, hud_config, context, thumb_path)
     VALUES
-      (@slug, @createdAt, @imagePath, @imageWidth, @imageHeight, @hudConfig, @context)
+      (@slug, @createdAt, @imagePath, @imageWidth, @imageHeight, @hudConfig, @context, @thumbPath)
   `);
   stmt.run({
     slug: record.slug,
@@ -51,6 +63,7 @@ export function insertGallery(record) {
     imageHeight: record.imageHeight ?? null,
     hudConfig: JSON.stringify(record.hudConfig),
     context: JSON.stringify(record.context),
+    thumbPath: record.thumbPath ?? null,
   });
   return getGallery(record.slug);
 }
@@ -61,7 +74,7 @@ export function insertGallery(record) {
 export function listGalleries(limit) {
   const rows = db
     .prepare(
-      `SELECT slug, created_at, image_path, hud_config, context
+      `SELECT slug, created_at, image_path, thumb_path, hud_config, context
        FROM galleries
        ORDER BY created_at DESC, rowid DESC
        LIMIT ?`
@@ -77,6 +90,7 @@ export function listGalleries(limit) {
       slug: row.slug,
       createdAt: row.created_at,
       imagePath: row.image_path,
+      thumbPath: row.thumb_path ?? null,
       place: place ? place.name || place.admin || place.country || null : null,
       preset:
         hudConfig && typeof hudConfig.preset === 'string'
@@ -103,16 +117,20 @@ export function getGallery(slug) {
   return rowToRecord(row);
 }
 
-// Removes one record and hands back the image path so the caller can unlink the
-// file. Returns null when the slug is unknown, so the route can answer 404
-// without a second query.
+// Removes one record and hands back the file paths so the caller can unlink the
+// image and its thumbnail. Returns null when the slug is unknown, so the route
+// can answer 404 without a second query.
 export function deleteGallery(slug) {
   const row = db
-    .prepare('SELECT image_path FROM galleries WHERE slug = ?')
+    .prepare('SELECT image_path, thumb_path FROM galleries WHERE slug = ?')
     .get(slug);
   if (!row) return null;
   db.prepare('DELETE FROM galleries WHERE slug = ?').run(slug);
-  return { slug, imagePath: row.image_path };
+  return {
+    slug,
+    imagePath: row.image_path,
+    thumbPath: row.thumb_path ?? null,
+  };
 }
 
 function rowToRecord(row) {
@@ -120,6 +138,7 @@ function rowToRecord(row) {
     slug: row.slug,
     createdAt: row.created_at,
     imagePath: row.image_path,
+    thumbPath: row.thumb_path ?? null,
     imageWidth: row.image_width,
     imageHeight: row.image_height,
     hudConfig: JSON.parse(row.hud_config),

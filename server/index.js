@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { generateSlug } from './slug.js';
 import {
   UPLOADS_DIR,
+  THUMBS_DIR,
   insertGallery,
   getGallery,
   listGalleries,
@@ -22,9 +23,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DEFAULT_GALLERY_LIMIT = 12;
 const MAX_GALLERY_LIMIT = 50;
+const THUMB_PREFIX = 'data:image/jpeg;base64,';
+const MAX_THUMB_BYTES = 60 * 1024;
 
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/thumbs', express.static(THUMBS_DIR));
 
 app.post('/api/galleries', (req, res, next) => {
   upload.single('image')(req, res, (err) => {
@@ -56,6 +60,11 @@ function handleUpload(req, res) {
   const hudConfig = isObject(payload.hudConfig) ? payload.hudConfig : {};
   const context = isObject(payload.context) ? payload.context : {};
 
+  const thumb = decodeThumb(payload.thumb);
+  if (thumb.error) {
+    return res.status(400).json({ error: thumb.error });
+  }
+
   let slug = generateSlug();
   while (slugExists(slug)) {
     slug = generateSlug();
@@ -66,11 +75,19 @@ function handleUpload(req, res) {
   const absolutePath = path.join(UPLOADS_DIR, filename);
   fs.writeFileSync(absolutePath, file.buffer);
 
+  let thumbPath = null;
+  if (thumb.buffer) {
+    const thumbFilename = `${slug}.jpg`;
+    fs.writeFileSync(path.join(THUMBS_DIR, thumbFilename), thumb.buffer);
+    thumbPath = `/thumbs/${thumbFilename}`;
+  }
+
   const dims = imageDimensions(file.buffer, type);
   const record = {
     slug,
     createdAt: new Date().toISOString(),
     imagePath: `/uploads/${filename}`,
+    thumbPath,
     imageWidth: dims.width,
     imageHeight: dims.height,
     hudConfig,
@@ -79,6 +96,32 @@ function handleUpload(req, res) {
 
   const stored = insertGallery(record);
   return res.status(201).json(stored);
+}
+
+// The editor sends a 96px JPEG data URL alongside the photo. It is optional,
+// because older clients and the smoke suite save without one, but when it is
+// present it must be exactly what the Recent list expects: a JPEG under 60 KB
+// once decoded. Written next to the image, never inside the database.
+function decodeThumb(raw) {
+  if (raw == null || raw === '') return { buffer: null };
+  if (typeof raw !== 'string' || !raw.startsWith(THUMB_PREFIX)) {
+    return { error: 'thumb must be a data:image/jpeg;base64 URL' };
+  }
+
+  const encoded = raw.slice(THUMB_PREFIX.length);
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+    return { error: 'thumb is not valid base64' };
+  }
+
+  const buffer = Buffer.from(encoded, 'base64');
+  if (sniffImage(buffer) !== 'jpg') {
+    return { error: 'thumb must be a JPEG image' };
+  }
+  if (buffer.length > MAX_THUMB_BYTES) {
+    return { error: 'thumb exceeds 60 KB' };
+  }
+
+  return { buffer };
 }
 
 function isObject(value) {
@@ -105,8 +148,8 @@ app.get('/s/:slug', (req, res) => {
   res.sendFile(path.join(publicDir, 'share.html'));
 });
 
-// Removes a saved gallery and its image file. The slug is re-validated here
-// because it is joined onto a filesystem path below.
+// Removes a saved gallery and its image and thumbnail files. The slug is
+// re-validated here because it is joined onto a filesystem path below.
 app.delete('/api/galleries/:slug', (req, res) => {
   const { slug } = req.params;
   if (!/^[0-9A-Za-z]{4,32}$/.test(slug)) {
@@ -120,6 +163,12 @@ app.delete('/api/galleries/:slug', (req, res) => {
 
   const filename = path.basename(removed.imagePath);
   fs.rmSync(path.join(UPLOADS_DIR, filename), { force: true });
+
+  if (removed.thumbPath) {
+    const thumbFilename = path.basename(removed.thumbPath);
+    fs.rmSync(path.join(THUMBS_DIR, thumbFilename), { force: true });
+  }
+
   return res.status(204).end();
 });
 

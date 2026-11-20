@@ -34,6 +34,9 @@ folder is gitignored. Delete it to start from an empty database. The server
 honours `TNT_DATA_DIR=<path>` if you want the data somewhere else, which is how
 the smoke suite keeps its 1x1 test PNGs out of your real galleries.
 
+Sharing also writes a 96px JPEG thumbnail per gallery under `data/thumbs/`, which
+is what the Recent list loads instead of the full photo.
+
 No API keys, no accounts, no build step.
 
 ---

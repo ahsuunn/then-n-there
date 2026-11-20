@@ -29,6 +29,12 @@ import { toast, setBusy } from './ui.js';
 const MAX_BYTES = 15 * 1024 * 1024;
 const SNAP_SCREEN_PX = 24;
 const RECENT_LIMIT = 20;
+const THUMB_EDGE = 96;
+const THUMB_QUALITY = 0.72;
+// A data URL longer than this is not worth uploading: the server caps the
+// decoded file at the same size, and a failed share is worse than a row that
+// falls back to the full photo.
+const MAX_THUMB_CHARS = 60 * 1024;
 const DEFAULT_ACCENT = '#f0a75c';
 const HUD_ALIGNMENTS = ['left', 'right', 'center'];
 const PRESET_LABELS = { plate: 'Plate', corner: 'Corner', strip: 'Strip' };
@@ -1147,9 +1153,9 @@ function clamp(value, min, max) {
 
 // ---- recent galleries ----
 
-// The list is a read of the server's index, never the photos themselves. The
-// thumbnails are the stored image paths, so the browser reuses its own cache
-// when a row is opened.
+// The list is a read of the server's index, never the photos themselves. Rows
+// use the stored 96px thumbnail, so twenty rows cost twenty small images;
+// older records without one fall back to their full image path.
 async function loadRecent() {
   try {
     const res = await fetch(`/api/galleries?limit=${RECENT_LIMIT}`);
@@ -1178,7 +1184,7 @@ function renderRecent(records) {
 
     const thumb = document.createElement('img');
     thumb.className = 'recent-thumb';
-    thumb.src = record.imagePath;
+    thumb.src = record.thumbPath || record.imagePath;
     thumb.alt = '';
     thumb.width = 40;
     thumb.height = 40;
@@ -1528,6 +1534,13 @@ async function share() {
       },
       context: contextSnapshot(),
     };
+
+    // Capture the thumbnail now, while the photo is already decoded: this is the
+    // only moment the Recent list can be given a 96px square instead of asking
+    // the browser to decode the full photo for every row later.
+    const thumb = makeThumb();
+    if (thumb) payload.thumb = thumb;
+
     const form = new FormData();
     form.append('image', state.image.file);
     form.append('payload', JSON.stringify(payload));
@@ -1558,6 +1571,43 @@ function shareErrorMessage(err) {
     return 'Share failed. The photo could not be uploaded. Check the connection and try again.';
   }
   return `Share failed. ${raw.replace(/[.!?]+$/, '')}.`;
+}
+
+// A 96px square JPEG data URL for the Recent list. Cover crop, so the square
+// never stretches the photo. Returns null when the encoding is too large or the
+// browser refuses to encode; the server treats the field as optional.
+function makeThumb() {
+  if (!imageBitmap) return null;
+
+  const iw = imageBitmap.width;
+  const ih = imageBitmap.height;
+  if (!iw || !ih) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = THUMB_EDGE;
+  canvas.height = THUMB_EDGE;
+  const tctx = canvas.getContext('2d');
+  if (!tctx) return null;
+
+  const scale = Math.max(THUMB_EDGE / iw, THUMB_EDGE / ih);
+  const dw = Math.max(THUMB_EDGE, Math.round(iw * scale));
+  const dh = Math.max(THUMB_EDGE, Math.round(ih * scale));
+  tctx.drawImage(
+    imageBitmap,
+    Math.round((THUMB_EDGE - dw) / 2),
+    Math.round((THUMB_EDGE - dh) / 2),
+    dw,
+    dh
+  );
+
+  let url;
+  try {
+    url = canvas.toDataURL('image/jpeg', THUMB_QUALITY);
+  } catch {
+    return null;
+  }
+  if (!url.startsWith('data:image/jpeg;base64,')) return null;
+  return url.length > MAX_THUMB_CHARS ? null : url;
 }
 
 // The snapshot from PLAN.md section 4, saved with the gallery so a share page
