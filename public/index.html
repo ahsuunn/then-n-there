@@ -128,10 +128,32 @@
             </section>
           </div>
 
-          <footer class="sidebar-footer" aria-labelledby="recent-label">
-            <h2 class="group-label" id="recent-label">Recent</h2>
-            <ul class="recent" id="recentList"></ul>
-            <p class="recent-empty" id="recentEmpty">saved photos appear here</p>
+          <footer
+            class="sidebar-footer"
+            id="recentGroup"
+            aria-labelledby="recent-label"
+          >
+            <h2 class="group-label" id="recent-label">
+              <button
+                type="button"
+                class="group-toggle"
+                id="recentToggle"
+                aria-expanded="true"
+                aria-controls="recentBody"
+              >
+                <span class="group-toggle-label">Recent</span>
+                <span class="group-count" id="recentCount">0</span>
+                <span class="group-caret" aria-hidden="true"></span>
+              </button>
+            </h2>
+            <div class="recent-body" id="recentBody">
+              <div class="recent-clip">
+                <ul class="recent" id="recentList"></ul>
+                <p class="recent-empty" id="recentEmpty">
+                  saved photos appear here
+                </p>
+              </div>
+            </div>
           </footer>
         </aside>
       </div>

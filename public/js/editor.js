@@ -29,6 +29,8 @@ import { toast, setBusy } from './ui.js';
 const MAX_BYTES = 15 * 1024 * 1024;
 const SNAP_SCREEN_PX = 24;
 const RECENT_LIMIT = 20;
+// The fold is a per-device preference, not a property of a saved gallery.
+const RECENT_COLLAPSED_KEY = 'tnt:recent:collapsed';
 const THUMB_EDGE = 96;
 const THUMB_QUALITY = 0.72;
 // A data URL longer than this is not worth uploading: the server caps the
@@ -68,6 +70,10 @@ const els = {
   groupSource: document.getElementById('group-source'),
   groupDerived: document.getElementById('group-derived'),
   groupStyle: document.getElementById('group-style'),
+  recentGroup: document.getElementById('recentGroup'),
+  recentToggle: document.getElementById('recentToggle'),
+  recentCount: document.getElementById('recentCount'),
+  recentBody: document.getElementById('recentBody'),
   recentList: document.getElementById('recentList'),
   recentEmpty: document.getElementById('recentEmpty'),
   sharePopover: document.getElementById('sharePopover'),
@@ -146,6 +152,7 @@ let mapHandle = null;
 let mapLookupToken = 0;
 
 // ---- initial render (no photo yet) ----
+restoreRecentCollapsed();
 state.fields = buildFields(null, state.hud);
 renderSidebar();
 renderCanvas();
@@ -1179,6 +1186,43 @@ function clamp(value, min, max) {
 
 // ---- recent galleries ----
 
+// The Recent header folds its list. This is a per-device display preference, so
+// it is remembered in localStorage next to the reconstruction cache; it is not
+// part of the app state that describes the photo.
+els.recentToggle.addEventListener('click', () => {
+  // A real button already maps Enter and Space to a click, and it keeps focus
+  // across the toggle, so the handler only has to flip the state.
+  const expanded = els.recentToggle.getAttribute('aria-expanded') === 'true';
+  setRecentCollapsed(expanded);
+});
+
+function restoreRecentCollapsed() {
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(RECENT_COLLAPSED_KEY) === '1';
+  } catch {
+    // Storage can be blocked; start expanded rather than fail to render.
+  }
+  applyRecentCollapsed(collapsed);
+}
+
+function setRecentCollapsed(collapsed) {
+  applyRecentCollapsed(collapsed);
+  try {
+    localStorage.setItem(RECENT_COLLAPSED_KEY, collapsed ? '1' : '0');
+  } catch {
+    // The toggle still works for this page view when storage is unavailable.
+  }
+}
+
+function applyRecentCollapsed(collapsed) {
+  els.recentToggle.setAttribute('aria-expanded', String(!collapsed));
+  els.recentGroup.classList.toggle('is-collapsed', collapsed);
+  // The clipped rows keep their buttons, which would still be tab stops at
+  // zero height. inert takes the whole panel out of focus order until reopen.
+  els.recentBody.inert = collapsed;
+}
+
 // The list is a read of the server's index, never the photos themselves. Rows
 // use the stored 96px thumbnail, so twenty rows cost twenty small images;
 // older records without one fall back to their full image path.
@@ -1196,6 +1240,7 @@ async function loadRecent() {
 function renderRecent(records) {
   els.recentList.textContent = '';
   els.recentEmpty.hidden = records.length > 0;
+  els.recentCount.textContent = String(records.length);
 
   const frag = document.createDocumentFragment();
   for (const record of records) {
@@ -1267,6 +1312,7 @@ function renderRecent(records) {
           throw new Error('delete failed');
         }
         item.remove();
+        els.recentCount.textContent = String(els.recentList.children.length);
         if (!els.recentList.children.length) els.recentEmpty.hidden = false;
         toast('Gallery deleted', 'info');
       } catch (err) {

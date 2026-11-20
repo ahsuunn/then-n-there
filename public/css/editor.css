@@ -480,9 +480,101 @@
   border-top: 1px solid var(--line);
 }
 
+/* The header is the collapse control, so the whole label row is the hit target.
+   The count sits next to it instead of becoming a second summary line. */
 .sidebar-footer .group-label {
   flex: none;
-  padding-bottom: 4px;
+  margin: 0;
+  padding: 0;
+}
+
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 8px 14px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease-out, color 140ms ease-out;
+}
+
+.group-toggle:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+
+.group-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.group-toggle-label {
+  flex: none;
+}
+
+/* The count is the one number in the header: mono, tabular, and quiet. */
+.group-count {
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.group-caret {
+  flex: none;
+  margin-left: auto;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transition: transform 140ms ease-out;
+}
+
+.group-toggle[aria-expanded="false"] .group-caret {
+  transform: rotate(-90deg);
+}
+
+/* The list folds by its own row height, so the header keeps its place and the
+   freed space goes back to the groups above. `0fr` is the animated equivalent
+   of `height: auto`; the clip hides rows without measuring them. */
+.recent-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  flex: 1 1 auto;
+  min-height: 0;
+  transition: grid-template-rows 140ms ease-out, opacity 140ms ease-out;
+}
+
+.recent-clip {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-footer.is-collapsed .recent-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.sidebar-footer.is-collapsed .recent {
+  overflow: hidden;
 }
 
 .recent {
@@ -615,6 +707,17 @@
 
 .recent-empty[hidden] {
   display: none;
+}
+
+/* The fold is state, not decoration: when motion is reduced it still collapses,
+   it just arrives there at once. tokens.css turns every transition off; this
+   keeps the intent local to the control that owns the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .group-toggle,
+  .group-caret,
+  .recent-body {
+    transition: none;
+  }
 }
 
 /* ---- location map overlay ---- */
