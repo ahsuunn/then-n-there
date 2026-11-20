@@ -80,6 +80,32 @@ const els = {
 const ctx = els.canvas.getContext('2d');
 let imageBitmap = null; // decoded photo, drawn fit-to-box
 
+// A decoded photo holds its pixels outside the JS heap, so replacing it must
+// release the old one. The <img> fallback from decodeImage has no close(), and
+// neither does a bitmap that was never created, so both are guarded.
+function releaseBitmap() {
+  if (imageBitmap && typeof imageBitmap.close === 'function') {
+    imageBitmap.close();
+  }
+  imageBitmap = null;
+}
+
+// Swap in the freshly decoded photo and drop the previous one. Decoding happens
+// before this call, so the repaint that follows always has a live bitmap to
+// draw.
+function adoptBitmap(next) {
+  if (imageBitmap === next) return;
+  releaseBitmap();
+  imageBitmap = next;
+}
+
+// Give the pixels back when the page is really going away. A page entering the
+// back/forward cache can be restored, and it repaints from this same bitmap, so
+// that case keeps it.
+window.addEventListener('pagehide', (event) => {
+  if (!event.persisted) releaseBitmap();
+});
+
 // Drag state for the plate. Box dimensions are captured on pointerdown so the
 // plate follows the pointer without re-measuring mid-gesture.
 const drag = {
@@ -189,7 +215,7 @@ async function handleFile(file) {
   if (exif.height == null) exif.height = bitmap.height;
 
   closeLocationMap();
-  imageBitmap = bitmap;
+  adoptBitmap(bitmap);
   runToken += 1;
   const token = runToken;
   context = null;
@@ -1306,7 +1332,7 @@ async function openGallery(slug) {
     // Discard any lookup still in flight from the previous photo: its results
     // belong to another snapshot and must not land in this one.
     runToken += 1;
-    imageBitmap = bitmap;
+    adoptBitmap(bitmap);
     pendingIds = new Set();
     context = normalizeSnapshot(record.context);
 

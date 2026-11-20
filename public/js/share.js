@@ -35,6 +35,28 @@ let fields = [];
 let hudConfig = {};
 let exporting = false;
 
+// The decoded photo owns memory outside the JS heap, so a replaced bitmap is
+// released rather than left to the collector. The <img> fallback from
+// decodeImage has no close(), so the guard keeps that path safe.
+function releaseBitmap() {
+  if (imageBitmap && typeof imageBitmap.close === 'function') {
+    imageBitmap.close();
+  }
+  imageBitmap = null;
+}
+
+function adoptBitmap(next) {
+  if (imageBitmap === next) return;
+  releaseBitmap();
+  imageBitmap = next;
+}
+
+// A page that is really going away gives its pixels back immediately. One that
+// enters the back/forward cache keeps them, because it is restored as is.
+window.addEventListener('pagehide', (event) => {
+  if (!event.persisted) releaseBitmap();
+});
+
 load();
 
 async function load() {
@@ -68,13 +90,15 @@ async function render(record) {
   const filename = String(record.imagePath).split('/').pop() || 'photo.jpg';
   const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
 
-  imageBitmap = await decodeImage(file);
+  // Decode before the swap, so a failed decode leaves the current photo intact.
+  const bitmap = await decodeImage(file);
+  adoptBitmap(bitmap);
 
   // The photo's own EXIF is the first half of the registry; the saved snapshot
   // is the second. No lookup runs here.
   const exif = await readExif(file);
-  if (exif.width == null) exif.width = imageBitmap.width;
-  if (exif.height == null) exif.height = imageBitmap.height;
+  if (exif.width == null) exif.width = bitmap.width;
+  if (exif.height == null) exif.height = bitmap.height;
 
   hudConfig =
     record.hudConfig && typeof record.hudConfig === 'object'
