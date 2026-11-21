@@ -245,11 +245,16 @@ function computeSky(exif) {
       (position.azimuth * 180) / Math.PI + 180
     );
 
+    const golden = isWithinGoldenHour(when, sunrise, sunset);
+    const night = sunrise && sunset ? when < sunrise || when > sunset : false;
     const sun = {
       sunrise: sunrise ? localTime(sunrise, exif.offset) : null,
       sunset: sunset ? localTime(sunset, exif.offset) : null,
       solarAzimuth: Math.round(solarAzimuth),
-      isGoldenHour: isWithinGoldenHour(when, sunrise, sunset),
+      isGoldenHour: golden,
+      // Without a phase the formatter can only say "not golden hour", which
+      // labelled a 21:11 photo as daylight. Night is its own state.
+      phase: night ? 'night' : golden ? 'golden hour' : 'daylight',
     };
 
     const moonInfo = SunCalc.getMoonIllumination(when);

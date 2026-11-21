@@ -291,7 +291,13 @@ function formatPeaks(peaks) {
 }
 
 function formatSun(sun) {
-  const parts = [sun.isGoldenHour ? 'Golden hour' : 'Daylight'];
+  const label =
+    sun.phase === 'night'
+      ? 'Night'
+      : sun.phase === 'golden hour'
+        ? 'Golden hour'
+        : 'Daylight';
+  const parts = [label];
   if (sun.solarAzimuth != null) parts.push(`${Math.round(sun.solarAzimuth)}°`);
   return parts.join(' · ');
 }
