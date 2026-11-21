@@ -2,3 +2,10 @@ node_modules/
 data/
 *.log
 .env
+
+# Screenshots stay local: they contain the author's photographs and travel only
+# in the submission zip, not in a public repository.
+docs/screenshots/
+
+# LibreOffice lock files left behind while the report template is open.
+.~lock.*#
