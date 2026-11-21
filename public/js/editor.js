@@ -445,6 +445,24 @@ async function applyMapPoint({ latitude, longitude }) {
   );
   renderCanvas();
 
+  // The remaining derived fields describe the previous point, so drop them and
+  // resolve them again for the corrected coordinates. The place lookup above is
+  // kept, which is what makes the map readout update immediately.
+  context.weather = null;
+  context.elevation = null;
+  context.peaks = null;
+  context.sun = null;
+  context.moon = null;
+  state.context = context;
+  pendingIds = new Set(pendingFieldIds(exif));
+  rebuildFields();
+  renderGroup(
+    els.groupDerived,
+    state.fields.filter((field) => field.group === 'derived'),
+    'derived'
+  );
+  resolveContext(exif, runToken);
+
   const field = state.fields.find((item) => item.id === 'place');
   return field && field.available ? field.value : 'place not resolved';
 }
