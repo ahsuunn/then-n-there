@@ -98,8 +98,13 @@ showing one POST and one GET.
 
 - SQLite via `better-sqlite3`, opened in `server/db.js`.
 - Schema: `galleries(slug TEXT PRIMARY KEY, created_at, image_path,
-  image_width, image_height, hud_config TEXT, context TEXT)`, WAL mode.
-- Queries: `insertGallery`, `getGallery`, `listGalleries`, `slugExists`.
+  image_width, image_height, hud_config TEXT, context TEXT, thumb_path TEXT,
+  fingerprint TEXT)`, WAL mode. Columns added after the first release are
+  migrated in place by a `PRAGMA table_info` guard, so an upgrade never drops
+  rows. `fingerprint` is indexed and holds the sha256 of a gallery's content, so
+  identical shares resolve to one record.
+- Queries: `insertGallery`, `getGallery`, `listGalleries`, `slugExists`,
+  `deleteGallery`, `findGalleryByFingerprint`.
 - Data lives in `data/app.db` plus `data/uploads/`; both gitignored, and
   `TNT_DATA_DIR` moves them.
 
