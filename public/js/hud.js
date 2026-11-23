@@ -176,7 +176,7 @@ export function layoutHUD(ctx, image, fields, config = {}) {
           ? 'left'
           : preset.align,
     tone: config.tone === 'light' ? 'light' : 'dark',
-    accent: accentValue(config.accent),
+    accent: config.accentRule === false ? null : accentValue(config.accent),
     opacity: clampNumber(config.opacity, 0, 1, 1),
     frame: { w: frame.w, h: frame.h },
     rect: { x: left, y: top, w: boxW, h: boxH },
@@ -219,18 +219,20 @@ export function renderHUD(ctx, image, fields, config = {}) {
   roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, radius);
   ctx.fill();
 
-  ctx.save();
-  ctx.clip();
+  if (layout.accent) {
+    ctx.save();
+    ctx.clip();
 
-  const rule = Math.max(2, Math.round(unit * 0.14));
-  ctx.fillStyle = layout.accent;
-  if (preset.rule === 'right') {
-    ctx.fillRect(rect.x + rect.w - rule, rect.y, rule, rect.h);
-  } else {
-    ctx.fillRect(rect.x, rect.y, rect.w, rule);
+    const rule = Math.max(2, Math.round(unit * 0.14));
+    ctx.fillStyle = layout.accent;
+    if (preset.rule === 'right') {
+      ctx.fillRect(rect.x + rect.w - rule, rect.y, rule, rect.h);
+    } else {
+      ctx.fillRect(rect.x, rect.y, rect.w, rule);
+    }
+
+    ctx.restore();
   }
-
-  ctx.restore();
 
   if (preset.arrangement === 'inline') {
     drawInline(ctx, layout, palette, rect, unit);
