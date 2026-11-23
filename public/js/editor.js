@@ -1638,7 +1638,10 @@ async function share() {
     // Same photo, same overlay, same link. The server answers 200 with the
     // existing record when the fingerprint matches, so pressing Share twice
     // does not duplicate the gallery or write a second copy of the photo.
-    const fingerprint = await contentFingerprint(payload.hudConfig);
+    const fingerprint = await contentFingerprint(
+      payload.hudConfig,
+      payload.context
+    );
     if (fingerprint) form.append('fingerprint', fingerprint);
 
     const res = await fetch('/api/galleries', { method: 'POST', body: form });
@@ -1654,15 +1657,19 @@ async function share() {
   }
 }
 
-// Fingerprint of what is being shared: the photo bytes followed by the canonical
-// overlay configuration. Positions are rounded, so float noise from a drag
-// cannot mint a new link for a composition nobody changed.
-async function contentFingerprint(hudConfig) {
+// Fingerprint of what is being shared: the photo bytes, the canonical overlay
+// configuration and the resolved context. Positions are rounded, so float noise
+// from a drag cannot mint a new link for a composition nobody changed, while a
+// corrected pin or a changed field does change the fingerprint.
+async function contentFingerprint(hudConfig, context) {
   if (!state.image || !globalThis.crypto || !crypto.subtle) return null;
   try {
     const bytes = new Uint8Array(await state.image.file.arrayBuffer());
     const config = new TextEncoder().encode(
-      JSON.stringify(canonicalHud(hudConfig))
+      JSON.stringify({
+        hud: canonicalHud(hudConfig),
+        context: canonicalContext(context),
+      })
     );
     const combined = new Uint8Array(bytes.length + config.length);
     combined.set(bytes, 0);
@@ -1690,6 +1697,28 @@ function canonicalHud(hud) {
     align: hud.align ?? null,
     fields: Array.isArray(hud.fields) ? [...hud.fields].sort() : [],
   };
+}
+
+// The context decides what the overlay says, so it belongs in the fingerprint:
+// a corrected pin changes the place name, the weather and the sun, and therefore
+// must not reuse a link that still carries the old values. Keys are sorted
+// because field order in the record is not meaningful.
+function canonicalContext(context) {
+  const sort = (value) => {
+    if (Array.isArray(value)) return value.map(sort);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((key) => [key, sort(value[key])])
+      );
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? Math.round(value * 1e6) / 1e6 : null;
+    }
+    return value ?? null;
+  };
+  return sort(context ?? {});
 }
 
 // A share can fail because the server rejected the file, because the network is
