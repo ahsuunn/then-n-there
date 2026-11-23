@@ -184,16 +184,16 @@ export function renderHUD(ctx, image, fields, config = {}) {
   ctx.globalAlpha = layout.opacity;
   ctx.textBaseline = 'middle';
 
-  // Scrim: one panel keeps the text legible over any photo without a shadow.
+  // Scrim and rule share one plate path, so the rule can never overhang a
+  // rounded corner. The clip is scoped: text must not be clipped.
+  const radius = unit * preset.radius;
   ctx.fillStyle = palette.scrim;
-  if (preset.radius > 0) {
-    roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, unit * preset.radius);
-    ctx.fill();
-  } else {
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-  }
+  roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, radius);
+  ctx.fill();
 
-  // One accent rule per plate, on the edge the preset calls its own.
+  ctx.save();
+  ctx.clip();
+
   const rule = Math.max(2, Math.round(unit * 0.14));
   ctx.fillStyle = layout.accent;
   if (preset.rule === 'right') {
@@ -201,6 +201,8 @@ export function renderHUD(ctx, image, fields, config = {}) {
   } else {
     ctx.fillRect(rect.x, rect.y, rect.w, rule);
   }
+
+  ctx.restore();
 
   if (preset.arrangement === 'inline') {
     drawInline(ctx, layout, palette, rect, unit);
