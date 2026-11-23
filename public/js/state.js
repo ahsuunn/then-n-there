@@ -18,6 +18,7 @@ export const state = {
     accent: '#f0a75c',
     opacity: 1,
     radiusScale: 1,
+    plateFont: 'mono',
     moved: false,
     plateVisible: true,
     fields: [],

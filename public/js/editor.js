@@ -135,6 +135,7 @@ const styleInputs = {
   fontScaleText: null,
   radiusScale: null,
   radiusScaleText: null,
+  plateFont: null,
   opacity: null,
   opacityText: null,
   position: null,
@@ -747,6 +748,22 @@ function renderStyleGroup() {
   styleInputs.fontScaleText = fontScale.readout;
   frag.appendChild(fontScale.row);
 
+  const plateFont = segmentedRow(
+    'plateFont',
+    'Typeface',
+    [
+      { value: 'sans', label: 'Sans' },
+      { value: 'mono', label: 'Mono' },
+    ],
+    state.hud.plateFont,
+    (value) => {
+      state.hud.plateFont = value === 'sans' ? 'sans' : 'mono';
+      renderCanvas();
+    }
+  );
+  styleInputs.plateFont = plateFont.group;
+  frag.appendChild(plateFont.row);
+
   const radiusScale = rangeRow({
     id: 'radiusScale',
     label: 'Corner radius',
@@ -972,6 +989,7 @@ function syncStyleControls() {
   if (styleInputs.fontScaleText) {
     styleInputs.fontScaleText.textContent = `${state.hud.fontScale.toFixed(2)}x`;
   }
+  paintSegmented(styleInputs.plateFont, state.hud.plateFont);
   if (styleInputs.radiusScale) {
     styleInputs.radiusScale.value = String(state.hud.radiusScale);
   }
@@ -1492,9 +1510,10 @@ function applyHudConfig(config) {
     : DEFAULT_ACCENT;
   state.hud.fontScale = numberIn(config.fontScale, 0.7, 2, defaults.fontScale);
   state.hud.opacity = numberIn(config.opacity, 0.2, 1, 1);
-  // The radius multiplier is a user preference like accent and opacity: a
-  // preset switch must keep it, so it is never reset there.
+  // The radius multiplier and the typeface are user preferences like accent
+  // and opacity: a preset switch must keep them, so they are never reset there.
   state.hud.radiusScale = numberIn(config.radiusScale, 0, 1.5, 1);
+  state.hud.plateFont = config.plateFont === 'sans' ? 'sans' : 'mono';
   state.hud.align = HUD_ALIGNMENTS.includes(config.align)
     ? config.align
     : defaults.align;
@@ -1656,6 +1675,7 @@ async function share() {
         fontScale: state.hud.fontScale,
         opacity: state.hud.opacity,
         radiusScale: state.hud.radiusScale,
+        plateFont: state.hud.plateFont,
         align: state.hud.align,
         fields: state.hud.fields,
       },
@@ -1732,6 +1752,7 @@ function canonicalHud(hud) {
     fontScale: round(hud.fontScale),
     opacity: round(hud.opacity),
     radiusScale: round(hud.radiusScale ?? 1),
+    plateFont: hud.plateFont === 'sans' ? 'sans' : 'mono',
     align: hud.align ?? null,
     fields: Array.isArray(hud.fields) ? [...hud.fields].sort() : [],
   };
