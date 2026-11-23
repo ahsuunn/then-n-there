@@ -144,6 +144,13 @@ async function run() {
   }
   console.log('smoke: non-image upload -> 400');
 
+  const icon = await fetch(`${BASE}/favicon-32.png`);
+  if (!icon.ok) return fail(`favicon returned ${icon.status}`);
+  if (!/image\/png/.test(icon.headers.get('content-type') || '')) {
+    return fail('favicon served with the wrong content type');
+  }
+  console.log('smoke: favicon -> 200');
+
   console.log('smoke: all checks passed');
   finish(0);
 }
