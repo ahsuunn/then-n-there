@@ -252,7 +252,7 @@ Measured results from the finished build:
   record and nothing local.
 - Reconstructed values for the demonstration photograph, taken in Seoul on 20
   November 2026 at 21:11, resolved to the place name, minus 1.6 degrees Celsius
-  with a clear sky, a ground elevation of 42 metres, night with a solar azimuth
+  with a clear sky, a ground elevation of 34 metres, night with a solar azimuth
   of 281 degrees, and a waxing gibbous moon at 80 percent illumination.
 - The recent gallery list serves 96 by 96 pixel thumbnails of about 3 kilobytes
   each, and each list row costs roughly 145 bytes of JSON because it carries a
