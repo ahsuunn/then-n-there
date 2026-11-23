@@ -4,7 +4,9 @@ export const MAX_BYTES = 15 * 1024 * 1024;
 
 export const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_BYTES, files: 1, fields: 1 },
+  // payload plus fingerprint today; the headroom avoids a hard failure the
+  // next time a small text field is added to the upload.
+  limits: { fileSize: MAX_BYTES, files: 1, fields: 4 },
 });
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];

@@ -11,6 +11,7 @@ import {
   getGallery,
   listGalleries,
   deleteGallery,
+  findGalleryByFingerprint,
   slugExists,
 } from './db.js';
 import { upload, sniffImage, imageDimensions } from './uploads.js';
@@ -65,6 +66,15 @@ function handleUpload(req, res) {
     return res.status(400).json({ error: thumb.error });
   }
 
+  // Identical content keeps its link. The client hashes the photo bytes and the
+  // overlay configuration, so re-sharing an untouched photo answers with the
+  // record that already exists instead of writing a second copy.
+  const fingerprint = normaliseFingerprint(req.body.fingerprint);
+  if (fingerprint) {
+    const existing = findGalleryByFingerprint(fingerprint);
+    if (existing) return res.status(200).json(existing);
+  }
+
   let slug = generateSlug();
   while (slugExists(slug)) {
     slug = generateSlug();
@@ -92,10 +102,20 @@ function handleUpload(req, res) {
     imageHeight: dims.height,
     hudConfig,
     context,
+    fingerprint,
   };
 
   const stored = insertGallery(record);
   return res.status(201).json(stored);
+}
+
+// A content fingerprint is a lowercase SHA-256 hex digest, produced by the
+// editor from the photo bytes and the overlay configuration. Anything else is
+// ignored rather than rejected: an older client simply makes a new record.
+function normaliseFingerprint(raw) {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(value) ? value : null;
 }
 
 // The editor sends a 96px JPEG data URL alongside the photo. It is optional,
