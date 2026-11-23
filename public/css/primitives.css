@@ -62,16 +62,16 @@
   border-color: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 
-/* ---- empty state (left-aligned text, centred block) ---- */
+/* ---- empty state (centred block, centred text) ---- */
 
 .stage-empty {
   position: absolute;
   inset: 0;
   display: grid;
   place-content: center;
-  justify-items: start;
+  justify-items: center;
   padding: 20px;
-  text-align: left;
+  text-align: center;
 }
 
 /* display: grid would otherwise beat the user agent rule for [hidden] */
