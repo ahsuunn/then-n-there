@@ -62,12 +62,25 @@
   border-color: color-mix(in srgb, var(--accent) 88%, var(--ink));
 }
 
-/* ---- empty state (left-aligned, never a centred stack) ---- */
+/* ---- empty state (left-aligned text, centred block) ---- */
 
 .stage-empty {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: start;
+  padding: 20px;
+  text-align: left;
+}
+
+/* display: grid would otherwise beat the user agent rule for [hidden] */
+.stage-empty[hidden] {
+  display: none;
+}
+
+.stage-empty .empty-title,
+.stage-empty .empty-hint {
   max-width: 320px;
 }
 

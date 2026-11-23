@@ -995,8 +995,6 @@
   }
 
   .stage-empty {
-    top: 16px;
-    left: 16px;
-    right: 16px;
+    padding: 12px;
   }
 }
