@@ -1,4 +1,7 @@
-# Report fixes: four edits to the version exported on 23 November
+# Report fixes
+
+Round one (items 1 to 4) is applied in the 16-page export and verified. Round
+two (items 5 and 6) is what the 16-page export still needs.
 
 The exported PDF is `docs/3_Assignment_Report.pdf`, 15 pages. All eight figures in
 it are the current files, so nothing there needs replacing. Four text passages are
@@ -125,3 +128,61 @@ pdftotext -layout 50261896.pdf - | grep -ci "identified by its content"
 The first should be 3 or more, the second 0, the third 1. The limitation text may
 still say "a gallery saved before the plate properties existed", which refers to
 the same fingerprint paragraph, so it stays.
+
+---
+
+# Round two, for the 16-page export
+
+Items 1 to 4 are now correct in the file. Two problems remain, both in the last
+figure row and in one sentence of section 3.
+
+## 5. Figure 9 row splits across a page break
+
+The row starts on page 14 and ends on page 15, where it leaves an orphan cell
+containing only "never the bytes themselves" with an empty number and photo
+column. The database image is also 1016 by 168 inside a narrow column, so it is
+unreadable at fit-width, and the caption contains literal backticks around
+sqlite3 that print as characters.
+
+Two changes:
+
+- Crop the screenshot to the table only, without the shell prompt and without
+  surrounding terminal, and make it as wide as the photo column allows. If that
+  is still unreadable, delete the row: the Database item is already evidenced by
+  the Recent list in Figure 8 and by the share page in Figure 7.
+- Replace the caption with this shorter one and remove the backticks:
+
+```
+The SQLite table behind every gallery, read with sqlite3 data/app.db. A row holds a slug, the stored overlay configuration, the resolved context as JSON, and paths to the image and thumbnail, never the bytes.
+```
+
+That is short enough for the row to stay on one page. If it still splits, put the
+cursor in the row and insert a page break before it so the whole row starts on
+the next page.
+
+## 6. Section 3, the typeface measurement is under-specified
+
+The bullet reads "563 pixels wide in the mono face against 524 in the sans face".
+Those numbers came from a two-field probe, not from the four-field plate the
+application draws, so a reader cannot reproduce them. Measured again on the real
+four-field plate in a 1200 by 800 frame: 665 pixels mono, 612 sans, eight percent
+narrower.
+
+**Replace the whole bullet with:**
+
+```
+Corner radius is a multiplier over each preset's own radius, so 0 draws a square
+plate and 1.5 a very round one. Switching typeface re-measures the plate rather
+than only restyling it: for the four-field plate in a 1200 by 800 frame, the mono
+face is 665 pixels wide and the sans face 612, eight percent narrower, recentred
+on the same point. Both values travel in the stored config, and a record saved as
+a square sans plate renders the same way when its share link is opened.
+```
+
+## Length
+
+The template sets no page limit. 16 pages is 2,850 words of prose plus nine
+figures, and the figure table accounts for about five of those pages. That is not
+long for a report with a rubric row per figure. Compaction would cost evidence,
+not words: the only shortening worth doing is the Figure 9 row above. Leave the
+rest.
