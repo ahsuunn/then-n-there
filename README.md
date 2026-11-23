@@ -37,7 +37,8 @@ the smoke suite keeps its 1x1 test PNGs out of your real galleries.
 Sharing also writes a 96px JPEG thumbnail per gallery under `data/thumbs/`, which
 is what the Recent list loads instead of the full photo.
 
-No API keys, no accounts, no build step.
+No API keys, no accounts, no build step. The three woff2 files under
+`public/fonts` are committed, so the type needs no network.
 
 ---
 
@@ -118,6 +119,14 @@ set, and paints with `renderHUD`. **No reconstruction request is made**: the
 context snapshot is already in the row, which is also why a share page works
 offline and instantly.
 
+The payload also carries a content fingerprint of the photo bytes, the canonical
+HUD config and the resolved context. If the server has seen that fingerprint it
+returns the existing record with 200 instead of writing a second row. Adding
+`radiusScale` and `plateFont` to the canonical config changed that digest, so a
+gallery shared before this work will not match its old fingerprint and gets one
+new record the next time it is shared: expect one duplicate per old gallery in
+the Recent list, not a bug.
+
 ---
 
 ## 4. The five shapes you need in your head
@@ -152,12 +161,21 @@ never hidden. Reasons are specific ("no direction recorded", "no timestamp",
 **HUD config** (`state.js` → row → share page):
 
 ```
-{ preset, x, y, tone, accent, fontScale, opacity, align, moved, fields: [ids] }
+{ preset, x, y, tone, accent, fontScale, opacity, radiusScale, plateFont,
+  align, moved, fields: [ids] }
 ```
 
 `x` and `y` are the plate centre as fractions of the frame. That single decision
 is what makes a dragged plate survive a window resize, an export, and the share
 page.
+
+`radiusScale` is a multiplier over the preset's own corner radius, 0 to 1.5 with
+a default of 1, so 0 is square and 1.5 is very round. `plateFont` is `sans` or
+`mono`, default `mono`. Both behave like accent and opacity rather than like a
+preset: switching preset keeps them, `applyHudConfig` clamps them when a saved
+record is reopened, and the share page honours them because it hands the stored
+config to the same renderer. Changing either re-measures the plate with the new
+family, so the box can move while its centre stays put.
 
 **Gallery row** (`server/db.js`): `slug, created_at, image_path, image_width,
 image_height, hud_config, context`. The last two are JSON text.
@@ -207,7 +225,8 @@ out at 5 seconds per attempt, and caches per rounded coordinate pair for a day.
 | `exif.js` | 97 | `readExif(file)` → the EXIF contract, nulls instead of throws |
 | `fields.js` | 301 | `buildFields()` → registry; `enabledFieldIds()`; provenance text |
 | `reconstruct.js` | 478 | Four lookups, per-field timeouts, `localStorage` cache, sky maths |
-| `hud.js` | 572 | `layoutHUD()`, `renderHUD()`, `snapBox()`, the three presets |
+| `hud.js` | 602 | `layoutHUD()`, `renderHUD()`, `snapBox()`, presets, `HUD_FONTS` |
+| `fonts.js` | 23 | `hudFontsReady()`: both HUD faces load before a paint or export |
 | `map.js` | 300 | Leaflet overlay, draggable pin, picker state, geolocation |
 | `export.js` | 130 | `renderToBlob()`, `exportSize()`, `exportName()`, download helper |
 | `editor.js` | 1621 | Wiring: intake, sidebar, canvas, drag, map, recent, export, share |
@@ -266,7 +285,10 @@ strip   inline,  maxWidth 0.94, single line of pairs,       default at 50% / 94%
 
 Each preset carries `padX`, `padY`, gaps, line height and a rule position, all in
 multiples of the type unit, so a preset scales with the photo rather than with
-the viewport. Switching preset applies that preset's default anchor and type
+the viewport. The preset owns the base corner radius, and `radiusScale` from the
+HUD config multiplies that base instead of replacing it, so each preset keeps its
+character at 0, 1 or 1.5. The typeface is not a preset property; `plateFont` is a
+user preference. Switching preset applies that preset's default anchor and type
 scale and keeps the enabled field list, but only while the plate has not been
 dragged (`moved` is false); once the user has positioned it, the normalised centre
 survives preset changes and only the Reset action clears the flag.
@@ -308,6 +330,17 @@ config instead of storing a rendered PNG. Smaller rows, and the HUD stays
 editable later. Cost: `hud.js` must stay pure and dependency-free, because both
 clients load it directly.
 
+**Self-hosted type.** Instrument Sans for the interface, IBM Plex Mono for the
+plate, served from `public/fonts` with the OFL texts beside them. `tokens.css`
+declares the three faces, `hud.js` exports `HUD_FONTS` and `HUD_FAMILIES` so no
+module retypes a family name, and `js/fonts.js` waits for both families before a
+paint or an export, because a cold load would otherwise bake the fallback face
+into the PNG. The plate keeps its old width because IBM Plex Mono matches the
+previous mono at a 0.600 em advance. No Google Fonts request remains. Cost: this
+removes third-party fonts, not third-party requests; the editor still loads
+Leaflet from jsDelivr for the map overlay, and both pages import exifr from that
+CDN.
+
 **Position in fractions, not pixels.** Survives resize, export scale and the
 share page. Cost: everything that reads position needs frame dimensions.
 
@@ -336,11 +369,13 @@ save a gallery, which is acceptable here and would not be in a real service.
 7. `public/js/hud.js` — `layoutHUD` (measure, auto-fit, position), then
    `renderHUD`, then `snapBox`. This is the most interesting arithmetic in the
    repo.
-8. `public/js/export.js` — 130 lines proving that export is just another draw.
-9. `public/js/editor.js` — read by section, using the markers above; skip the
-   first pass over the sidebar builders if you only want the flow.
-10. `public/js/share.js` — the same renderer with no editor around it.
-11. `scripts/smoke.js` — what "it works" means in this repo, and the reason the
+8. `public/js/fonts.js` — 23 lines, and the reason a cold load cannot export a
+   PNG in the fallback face.
+9. `public/js/export.js` — 130 lines proving that export is just another draw.
+10. `public/js/editor.js` — read by section, using the markers above; skip the
+    first pass over the sidebar builders if you only want the flow.
+11. `public/js/share.js` — the same renderer with no editor around it.
+12. `scripts/smoke.js` — what "it works" means in this repo, and the reason the
     data folder is overridable.
 
 ---
@@ -349,7 +384,7 @@ save a gallery, which is acceptable here and would not be in a real service.
 
 | Implementation line | Where it lives |
 |---|---|
-| HTML and CSS | `public/index.html`, `public/share.html`, `public/css/tokens.css`, `editor.css`, `primitives.css`, `share.css` |
+| HTML and CSS | `public/index.html`, `public/share.html`, `public/css/tokens.css` (self-hosted faces), `editor.css`, `primitives.css`, `share.css`, `public/fonts/` (three woff2 and two OFL texts) |
 | JavaScript | all of `public/js/`, ES modules, no framework |
 | Location based | `exif.js` (GPS contract), `map.js` (Leaflet overlay, pin drag, picker, geolocation), `reconstruct.js` (reverse geocode, elevation) |
 | Canvas | `hud.js` (layout and draw), `export.js` (offscreen render, `toBlob`) |
