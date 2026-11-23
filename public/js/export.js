@@ -8,6 +8,7 @@
 // list; the registry is handed in.
 
 import { renderHUD } from './hud.js';
+import { hudFontsReady } from './fonts.js';
 
 // The longest edge an export or a preview may use. The editor preview uses the
 // same cap, so a 4096px export and a 4096px preview share one coordinate space.
@@ -45,7 +46,7 @@ export async function renderToBlob(imageBitmap, fields, hudConfig, opts = {}) {
 
   // A font that lands after the first paint would export fallback glyphs, so
   // wait for the same font state the preview settled on.
-  await fontsReady();
+  await hudFontsReady();
 
   const { width, height } = exportSize(imageBitmap);
   const canvas = document.createElement('canvas');
@@ -117,14 +118,4 @@ function toBlob(canvas, type, quality) {
       quality
     );
   });
-}
-
-async function fontsReady() {
-  if (typeof document === 'undefined' || !document.fonts) return;
-  if (!document.fonts.ready) return;
-  try {
-    await document.fonts.ready;
-  } catch {
-    // Fonts are optional: a fallback face still exports.
-  }
 }

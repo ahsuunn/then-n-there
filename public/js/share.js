@@ -15,6 +15,7 @@ import {
   exportSize,
   renderToBlob,
 } from './export.js';
+import { hudFontsReady } from './fonts.js';
 
 const slug = decodeURIComponent(
   window.location.pathname.replace(/^\/s\//, '').replace(/\/+$/, '')
@@ -229,8 +230,6 @@ async function download() {
   }
 }
 
-// The first paint may land before the mono face, so repaint once the fonts the
+// The first paint may land before the faces, so repaint once the fonts the
 // editor also waits for are ready.
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => paint());
-}
+hudFontsReady().then(() => paint());

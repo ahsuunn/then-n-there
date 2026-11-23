@@ -24,6 +24,7 @@ import {
   exportSize,
   renderToBlob,
 } from './export.js';
+import { hudFontsReady } from './fonts.js';
 import { toast, setBusy } from './ui.js';
 
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -1877,6 +1878,4 @@ const observer =
 if (observer) observer.observe(els.stage);
 else window.addEventListener('resize', () => renderCanvas());
 
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => renderCanvas());
-}
+hudFontsReady().then(() => renderCanvas());
