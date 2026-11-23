@@ -122,10 +122,10 @@ offline and instantly.
 The payload also carries a content fingerprint of the photo bytes, the canonical
 HUD config and the resolved context. If the server has seen that fingerprint it
 returns the existing record with 200 instead of writing a second row. Adding
-`radiusScale` and `plateFont` to the canonical config changed that digest, so a
-gallery shared before this work will not match its old fingerprint and gets one
-new record the next time it is shared: expect one duplicate per old gallery in
-the Recent list, not a bug.
+drawing keys to the canonical config changes that digest, so a gallery shared
+before those keys existed will not match its old fingerprint and gets one new
+record the next time it is shared: expect one duplicate per old gallery in the
+Recent list, not a bug.
 
 ---
 
@@ -161,8 +161,8 @@ never hidden. Reasons are specific ("no direction recorded", "no timestamp",
 **HUD config** (`state.js` → row → share page):
 
 ```
-{ preset, x, y, tone, accent, fontScale, opacity, radiusScale, plateFont,
-  align, moved, fields: [ids] }
+{ preset, x, y, tone, accent, accentRule, fontScale, opacity, radiusScale,
+  plateFont, align, moved, fields: [ids] }
 ```
 
 `x` and `y` are the plate centre as fractions of the frame. That single decision
@@ -175,7 +175,9 @@ a default of 1, so 0 is square and 1.5 is very round. `plateFont` is `sans` or
 preset: switching preset keeps them, `applyHudConfig` clamps them when a saved
 record is reopened, and the share page honours them because it hands the stored
 config to the same renderer. Changing either re-measures the plate with the new
-family, so the box can move while its centre stays put.
+family, so the box can move while its centre stays put. `accentRule` defaults to
+true; turn it off and the plate skips the accent bar, keeping the chosen colour
+stored for when it is turned back on.
 
 **Gallery row** (`server/db.js`): `slug, created_at, image_path, image_width,
 image_height, hud_config, context`. The last two are JSON text.
