@@ -5,9 +5,9 @@
   "description": "Then & There: photo map tracker and share service. Web Programming 2026 final assignment.",
   "type": "module",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
-    "smoke": "node scripts/smoke.js"
+    "start": "node src/server/index.js",
+    "dev": "node --watch src/server/index.js",
+    "smoke": "node src/scripts/smoke.js"
   },
   "engines": {
     "node": ">=20"

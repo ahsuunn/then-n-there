@@ -18,9 +18,9 @@ scores three levels. Both are covered here.
   inside labels, `aria-labelledby` per group, `aria-describedby` on the map
   dialog.
 - `public/share.html`: separate document, no editor controls, `<a>` back to `/`.
-- `public/css/tokens.css`: the eight custom properties, reset, base type, motion
+- `src/public/css/tokens.css`: the eight custom properties, reset, base type, motion
   preference. Every other file reads the tokens, no raw hex outside this file.
-- `public/css/editor.css`, `primitives.css`, `share.css`: layout, shared
+- `src/public/css/editor.css`, `primitives.css`, `share.css`: layout, shared
   primitives, share surface. Four files, one responsibility each.
 - Responsive: single breakpoint at 899px turning the sidebar into a bottom sheet.
 
@@ -29,7 +29,7 @@ one at 380px wide.
 
 ### JavaScript
 
-- All of `public/js/`, ES modules loaded by the browser with no build step and no
+- All of `src/public/js/`, ES modules loaded by the browser with no build step and no
   framework: `state.js` (39 lines), `exif.js`, `fields.js`, `reconstruct.js`,
   `hud.js`, `map.js`, `export.js`, `editor.js`, `share.js`, `ui.js`, `wmo.js`.
 - The two clients share `hud.js` and `fields.js`; there is no second renderer.
@@ -72,7 +72,7 @@ Four keyless services, all called from `reconstruct.js`:
 | BigDataCloud reverse geocode | place name, district, country | `GET api.bigdatacloud.net/data/reverse-geocode-client` |
 | Open-Meteo archive | weather at the capture hour | `GET archive-api.open-meteo.com/v1/archive`, `timezone=auto` |
 | Open-Meteo elevation | ground elevation | `GET api.open-meteo.com/v1/elevation` |
-| Overpass (OSM) | named peaks, bearing filtered | `GET /api/peaks` → `server/peaks.js` |
+| Overpass (OSM) | named peaks, bearing filtered | `GET /api/peaks` → `src/server/peaks.js` |
 
 Sun and moon come from SunCalc computed locally, which is deliberate: not
 everything should be a network call, and the report can say why.
@@ -82,10 +82,10 @@ its reason, and the JSON of one request.
 
 ### Server / client
 
-- `server/index.js`: `POST /api/galleries` (multipart, magic-byte validation),
+- `src/server/index.js`: `POST /api/galleries` (multipart, magic-byte validation),
   `GET /api/galleries?limit=`, `GET /api/galleries/:slug`, `GET /s/:slug`,
   `GET /api/peaks`.
-- `server/db.js`, `server/uploads.js`, `server/slug.js`, `server/peaks.js` split
+- `src/server/db.js`, `src/server/uploads.js`, `src/server/slug.js`, `src/server/peaks.js` split
   by responsibility.
 - The client side of that boundary: `editor.js` posting the image plus
   `{hudConfig, context}`, `share.js` fetching a record and rebuilding the picture
@@ -96,7 +96,7 @@ showing one POST and one GET.
 
 ### Database
 
-- SQLite via `better-sqlite3`, opened in `server/db.js`.
+- SQLite via `better-sqlite3`, opened in `src/server/db.js`.
 - Schema: `galleries(slug TEXT PRIMARY KEY, created_at, image_path,
   image_width, image_height, hud_config TEXT, context TEXT, thumb_path TEXT,
   fingerprint TEXT)`, WAL mode. Columns added after the first release are

@@ -7,8 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Tests point this at a throwaway folder so a smoke run never writes into the
 // developer's real gallery database.
+// The source lives in src/, so the runtime data directory stays at the repo
+// root rather than moving with the code.
 export const DATA_DIR =
-  process.env.TNT_DATA_DIR || path.join(__dirname, '..', 'data');
+  process.env.TNT_DATA_DIR || path.join(__dirname, '..', '..', 'data');
 export const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 // One 96px JPEG per gallery, captured by the editor at share time. The Recent
 // list reads these instead of decoding a full photo for every row.

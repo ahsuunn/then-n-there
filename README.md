@@ -38,7 +38,7 @@ Sharing also writes a 96px JPEG thumbnail per gallery under `data/thumbs/`, whic
 is what the Recent list loads instead of the full photo.
 
 No API keys, no accounts, no build step. The three woff2 files under
-`public/fonts` are committed, so the type needs no network.
+`src/public/fonts` are committed, so the type needs no network.
 
 ---
 
@@ -60,7 +60,7 @@ No API keys, no accounts, no build step. The three woff2 files under
                     └───────────────┬───────────────────────────────┬───────────────┘
                                     │ HTTP                          │ HTTPS
                     ┌───────────────▼───────────────┐   ┌───────────▼───────────────┐
-                    │ Express (server/index.js)     │   │ BigDataCloud reverse geo   │
+                    │ Express (src/server/index.js) │   │ BigDataCloud reverse geo   │
                     │  db.js  → SQLite              │   │ Open-Meteo archive (weather)│
                     │  uploads.js → magic bytes     │   │ Open-Meteo elevation        │
                     │  slug.js → 8-char base62      │   │ Overpass (via /api/peaks)  │
@@ -179,7 +179,7 @@ family, so the box can move while its centre stays put. `accentRule` defaults to
 true; turn it off and the plate skips the accent bar, keeping the chosen colour
 stored for when it is turned back on.
 
-**Gallery row** (`server/db.js`): `slug, created_at, image_path, image_width,
+**Gallery row** (`src/server/db.js`): `slug, created_at, image_path, image_width,
 image_height, hud_config, context`. The last two are JSON text.
 
 ---
@@ -188,11 +188,11 @@ image_height, hud_config, context`. The last two are JSON text.
 
 | File | Lines | Responsibility |
 |---|---|---|
-| `server/index.js` | 165 | Express app, static hosting, the seven routes, error mapping |
-| `server/db.js` | 120 | Opens SQLite, creates `data/`, schema, queries |
-| `server/uploads.js` | 74 | Multer memory storage, 15 MB cap, magic-byte sniffing, pixel dimensions |
-| `server/slug.js` | 14 | 8-character base62 slug from `crypto.randomBytes` |
-| `server/peaks.js` | 65 | Overpass proxy: mirror rotation, retries, 24h in-memory cache |
+| `src/server/index.js` | 165 | Express app, static hosting, the seven routes, error mapping |
+| `src/server/db.js` | 120 | Opens SQLite, creates `data/`, schema, queries |
+| `src/server/uploads.js` | 74 | Multer memory storage, 15 MB cap, magic-byte sniffing, pixel dimensions |
+| `src/server/slug.js` | 14 | 8-character base62 slug from `crypto.randomBytes` |
+| `src/server/peaks.js` | 65 | Overpass proxy: mirror rotation, retries, 24h in-memory cache |
 
 Routes:
 
@@ -333,7 +333,7 @@ editable later. Cost: `hud.js` must stay pure and dependency-free, because both
 clients load it directly.
 
 **Self-hosted type.** Instrument Sans for the interface, IBM Plex Mono for the
-plate, served from `public/fonts` with the OFL texts beside them. `tokens.css`
+plate, served from `src/public/fonts` with the OFL texts beside them. `tokens.css`
 declares the three faces, `hud.js` exports `HUD_FONTS` and `HUD_FAMILIES` so no
 module retypes a family name, and `js/fonts.js` waits for both families before a
 paint or an export, because a cold load would otherwise bake the fallback face
@@ -358,26 +358,26 @@ save a gallery, which is acceptable here and would not be in a real service.
 
 ## 11. A guided first read
 
-1. `server/db.js` — the schema is the whole persistence story; read it first.
-2. `server/index.js` — seven routes, each short. Note the validation order:
+1. `src/server/db.js` — the schema is the whole persistence story; read it first.
+2. `src/server/index.js` — seven routes, each short. Note the validation order:
    file present, magic bytes, payload JSON, then write.
-3. `public/js/state.js` — 39 lines, and everything else hangs off this shape.
-4. `public/js/exif.js` — how a `File` becomes the EXIF contract, including
+3. `src/public/js/state.js` — 39 lines, and everything else hangs off this shape.
+4. `src/public/js/exif.js` — how a `File` becomes the EXIF contract, including
    orientation and null handling.
-5. `public/js/fields.js` — the registry. This is the contract between data and
+5. `src/public/js/fields.js` — the registry. This is the contract between data and
    UI; `DEFAULT_ON` explains the default plate.
-6. `public/js/reconstruct.js` — read `reconstructContext` then `cached` then one
+6. `src/public/js/reconstruct.js` — read `reconstructContext` then `cached` then one
    lookup (weather is the clearest). Note what is not fetched: sun and moon.
-7. `public/js/hud.js` — `layoutHUD` (measure, auto-fit, position), then
+7. `src/public/js/hud.js` — `layoutHUD` (measure, auto-fit, position), then
    `renderHUD`, then `snapBox`. This is the most interesting arithmetic in the
    repo.
-8. `public/js/fonts.js` — 23 lines, and the reason a cold load cannot export a
+8. `src/public/js/fonts.js` — 23 lines, and the reason a cold load cannot export a
    PNG in the fallback face.
-9. `public/js/export.js` — 130 lines proving that export is just another draw.
-10. `public/js/editor.js` — read by section, using the markers above; skip the
+9. `src/public/js/export.js` — 130 lines proving that export is just another draw.
+10. `src/public/js/editor.js` — read by section, using the markers above; skip the
     first pass over the sidebar builders if you only want the flow.
-11. `public/js/share.js` — the same renderer with no editor around it.
-12. `scripts/smoke.js` — what "it works" means in this repo, and the reason the
+11. `src/public/js/share.js` — the same renderer with no editor around it.
+12. `src/scripts/smoke.js` — what "it works" means in this repo, and the reason the
     data folder is overridable.
 
 ---
@@ -386,13 +386,13 @@ save a gallery, which is acceptable here and would not be in a real service.
 
 | Implementation line | Where it lives |
 |---|---|
-| HTML and CSS | `public/index.html`, `public/share.html`, `public/css/tokens.css` (self-hosted faces), `editor.css`, `primitives.css`, `share.css`, `public/fonts/` (three woff2 and two OFL texts) |
-| JavaScript | all of `public/js/`, ES modules, no framework |
+| HTML and CSS | `public/index.html`, `public/share.html`, `src/public/css/tokens.css` (self-hosted faces), `editor.css`, `primitives.css`, `share.css`, `src/public/fonts/` (three woff2 and two OFL texts) |
+| JavaScript | all of `src/public/js/`, ES modules, no framework |
 | Location based | `exif.js` (GPS contract), `map.js` (Leaflet overlay, pin drag, picker, geolocation), `reconstruct.js` (reverse geocode, elevation) |
 | Canvas | `hud.js` (layout and draw), `export.js` (offscreen render, `toBlob`) |
 | Open API | `reconstruct.js`: BigDataCloud, Open-Meteo archive, Open-Meteo elevation, Overpass via `/api/peaks` |
-| Server / client | `server/index.js` (API), `share.js` (client of that API), upload and share flow |
-| Database | `server/db.js`, schema in section 5, `data/app.db` |
+| Server / client | `src/server/index.js` (API), `share.js` (client of that API), upload and share flow |
+| Database | `src/server/db.js`, schema in section 5, `data/app.db` |
 | Web Storage | `reconstruct.js` cache: `tnt:reconstruct:v1:<kind>:<lat3>,<lon3>:<hour>`, 24h |
 
 Suggested level table for the report: L1 editor layout and drop zone, L2 EXIF
