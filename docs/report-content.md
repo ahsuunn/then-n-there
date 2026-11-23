@@ -255,6 +255,9 @@ Measured results from the finished build:
   place name, 1.1 degrees Celsius with a clear sky, a ground elevation of 53
   metres, night with a solar azimuth of 280 degrees, and a waxing gibbous moon at
   80 percent illumination.
+- The demonstration photograph carries a GPS block whose values are all NaN,
+  so the location was set once with the map overlay and stored with the gallery;
+  every location-derived field follows from that pin.
 - The recent gallery list serves 96 by 96 pixel thumbnails of about 3 kilobytes
   each, and each list row costs roughly 145 bytes of JSON because it carries a
   path rather than an image, so a full list stays a few kilobytes regardless of
