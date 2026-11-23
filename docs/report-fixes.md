@@ -156,9 +156,12 @@ Two changes:
 The SQLite table behind every gallery, read with sqlite3 data/app.db. A row holds a slug, the stored overlay configuration, the resolved context as JSON, and paths to the image and thumbnail, never the bytes.
 ```
 
-That is short enough for the row to stay on one page. If it still splits, put the
-cursor in the row and insert a page break before it so the whole row starts on
-the next page.
+That is short enough for the row to stay on one page in most cases. Google Docs
+will not let a page break sit inside a table, so if the row still splits, free
+vertical space above it instead: drag the right edge of the Figure 8 mobile image
+left until it is about two thirds of the cell width. A 760 by 1520 image shrinks
+by the same ratio, which returns roughly two and a half centimetres on the page,
+and the row then fits.
 
 ## 6. Section 3, the typeface measurement is under-specified
 
