@@ -177,7 +177,9 @@ image_height, hud_config, context`. The last two are JSON text.
 Routes:
 
 ```
-POST /api/galleries        multipart image + payload JSON → 201 record
+POST /api/galleries        multipart image + payload JSON + optional fingerprint
+                           201 with a new record, or 200 with the existing one
+                           when the content fingerprint is already known
 GET  /api/galleries        ?limit=1..50 (default 12) → newest first, trimmed
 GET  /api/galleries/:slug  full record, 404 JSON when unknown
 GET  /s/:slug              serves share.html (the client fetches the record)
@@ -366,7 +368,8 @@ history.
 ## 13. What is not built
 
 - Editing a saved gallery. Rows are immutable apart from delete, and switching a
-  record never overwrites it: sharing again mints a new slug.
+  record never overwrites it. Sharing identical content returns the existing link;
+  any change to the photo or the overlay mints a new one.
 - Pagination beyond 50 recent rows, and any authentication.
 - A demo photo set; bring your own originals, since messengers and social apps
   strip EXIF and those photos will show the fallback states.
