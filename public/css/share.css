@@ -85,21 +85,12 @@
   max-height: calc(100dvh - 190px);
 }
 
-/* ---- footnote and status, both mono like every other reading ---- */
-
-.share-status,
-.share-note {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: -0.01em;
-  color: var(--muted);
-}
+/* ---- status line, mono like every other reading ---- */
 
 .share-status {
+  margin: 0;
+  font-family: var(--font-mono);
   font-size: 13px;
-}
-
-.share-note[hidden] {
-  display: none;
+  letter-spacing: -0.01em;
+  color: var(--muted);
 }

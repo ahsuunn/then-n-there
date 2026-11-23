@@ -25,7 +25,6 @@ const els = {
   stage: document.getElementById('stage'),
   canvas: document.getElementById('hudCanvas'),
   status: document.getElementById('status'),
-  note: document.getElementById('note'),
   download: document.getElementById('downloadButton'),
 };
 
@@ -112,7 +111,6 @@ async function render(record) {
   paint();
   els.stage.hidden = false;
   els.status.textContent = '';
-  els.note.hidden = false;
   els.download.disabled = false;
   document.title = `${placeName(record.context) || 'Photo'} · Then & There`;
 }
@@ -191,7 +189,6 @@ async function decodeImage(file) {
 function fail(message) {
   els.status.textContent = message;
   els.stage.hidden = true;
-  els.note.hidden = true;
   els.download.disabled = true;
 }
 
