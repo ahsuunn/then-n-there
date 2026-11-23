@@ -250,10 +250,11 @@ Measured results from the finished build:
   with no network reconstruction. With both local and session storage emptied,
   the link still renders the identical canvas, so the page depends on the server
   record and nothing local.
-- Reconstructed values for the demonstration photograph, taken in Seoul on 20
-  November 2026 at 21:11, resolved to the place name, minus 1.6 degrees Celsius
-  with a clear sky, a ground elevation of 34 metres, night with a solar azimuth
-  of 281 degrees, and a waxing gibbous moon at 80 percent illumination.
+- Reconstructed values for the demonstration photograph, taken at Donggung
+  Palace and Wolji Pond in Gyeongju on 20 November 2026 at 21:11, resolved to the
+  place name, 1.1 degrees Celsius with a clear sky, a ground elevation of 53
+  metres, night with a solar azimuth of 280 degrees, and a waxing gibbous moon at
+  80 percent illumination.
 - The recent gallery list serves 96 by 96 pixel thumbnails of about 3 kilobytes
   each, and each list row costs roughly 145 bytes of JSON because it carries a
   path rather than an image, so a full list stays a few kilobytes regardless of
@@ -283,9 +284,9 @@ below them carries the preset, tone, accent, type and plate controls, and the
 canvas shows the composition that will be exported. (`01-editor-exif.jpg`)
 
 Figure 2. The reconstructed fields with their values. The small information
-control on each row names the service that produced it. The peaks row reads the
-nearest named summits from a volunteer-run map database, here Namsan at 1.8 km
-with two more behind the count. (`02-derived.png`)
+control on each row names the service that produced it. The peaks row depends on a
+volunteer-run map database that was saturated during capture, so that one row
+states a reason instead of a value. (`02-derived.png`)
 
 Figure 3. The same panel for a photograph that passed through a messaging
 application. Its metadata was stripped, so every row reports what is missing
