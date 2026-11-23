@@ -66,6 +66,13 @@ async function run() {
   if (!home.ok) return fail(`GET / returned ${home.status}`);
   console.log(`smoke: GET / -> ${home.status}`);
 
+  const fontRes = await fetch(`${BASE}/fonts/ibm-plex-mono-latin-500.woff2`);
+  if (!fontRes.ok) return fail(`font asset returned ${fontRes.status}`);
+  if (!/font\/woff2/.test(fontRes.headers.get('content-type') || '')) {
+    return fail('font asset served with the wrong content type');
+  }
+  console.log(`smoke: GET /fonts/ibm-plex-mono-latin-500.woff2 -> ${fontRes.status}`);
+
   const form = new FormData();
   form.append('image', new Blob([PNG], { type: 'image/png' }), 'test.png');
   form.append(

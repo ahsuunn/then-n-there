@@ -7,7 +7,16 @@
 // never pixels, so one config lands in the same relative place on a 600px
 // preview and on a 3264px export.
 
-const MONO = "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+// The canvas font stacks live here so no other module retypes a family name. A
+// typo in a literal makes `ctx.font` an invalid assignment, which browsers
+// ignore silently, leaving the previous font in place.
+export const HUD_FONTS = {
+  sans: "'Instrument Sans', ui-sans-serif, system-ui, sans-serif",
+  mono: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+};
+
+export const HUD_FAMILIES = { sans: 'Instrument Sans', mono: 'IBM Plex Mono' };
+
 const DEFAULT_ACCENT = '#f0a75c';
 
 const TONES = {
@@ -119,7 +128,14 @@ export function layoutHUD(ctx, image, fields, config = {}) {
   // Measure at the base size, then shrink until the plate fits the frame. A
   // long field (coordinates, peaks) can pull a 12 row plate down a size or two.
   let unit = base;
-  let metrics = measure(ctx, preset, rows, unit, frame.w * preset.maxWidth);
+  let metrics = measure(
+    ctx,
+    preset,
+    rows,
+    unit,
+    frame.w * preset.maxWidth,
+    HUD_FONTS.mono
+  );
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const limitW = frame.w * preset.maxWidth;
     const limitH = frame.h * preset.maxHeight;
@@ -127,7 +143,7 @@ export function layoutHUD(ctx, image, fields, config = {}) {
     const factor = Math.min(limitW / metrics.boxW, limitH / metrics.boxH);
     if (!(factor < 1) || unit * factor < 6) break;
     unit = Math.max(6, unit * factor);
-    metrics = measure(ctx, preset, rows, unit, limitW);
+    metrics = measure(ctx, preset, rows, unit, limitW, HUD_FONTS.mono);
   }
 
   const { boxW, boxH } = metrics;
@@ -250,10 +266,10 @@ export function snapBox(box, frameW, frameH, threshold) {
 
 // ---- measuring ----
 
-function measure(ctx, preset, rows, unit, maxWidthPx) {
+function measure(ctx, preset, rows, unit, maxWidthPx, family = HUD_FONTS.mono) {
   const labelSize = unit * (preset.arrangement === 'stack' ? 0.72 : 0.84);
-  const labelFont = fontString(500, labelSize);
-  const valueFont = fontString(500, unit);
+  const labelFont = fontString(500, labelSize, family);
+  const valueFont = fontString(500, unit, family);
   const labels = rows.map((row) => String(row.label ?? '').toUpperCase());
   const values = rows.map((row) => String(row.value ?? ''));
 
@@ -554,8 +570,8 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function fontString(weight, size) {
-  return `${weight} ${Math.max(1, Math.round(size))}px ${MONO}`;
+function fontString(weight, size, family = HUD_FONTS.mono) {
+  return `${weight} ${Math.max(1, Math.round(size))}px ${family}`;
 }
 
 function roundRectPath(ctx, x, y, w, h, r) {
