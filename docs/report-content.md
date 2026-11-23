@@ -6,6 +6,25 @@ you have taken it.
 
 ---
 
+## Changes since the last export
+
+Five edits, each in place below. Paste them in this order; the section names are
+the ones in the exported PDF.
+
+| # | Where | What changed |
+|---|---|---|
+| 1 | 2.5 Overlay layout | the preset paragraph now names the base corner radius and the two plate preferences |
+| 2 | 3 Results | one new bullet about the radius multiplier and the typeface switch, with measured widths |
+| 3 | 3.1 Limitation | the share sentence is corrected, and three limits are added: Leaflet still loads from a CDN, a radius or typeface change counts as new content, and an old gallery mints one duplicate record |
+| 4 | Figures | caption 1 mentions the Style controls, caption 4 says which radius and face the three presets are drawn in |
+| 5 | Figures 1 to 8 | re-shoot against the current build; figure 9 is unaffected |
+
+Four earlier corrections are also still waiting if the PDF was exported before
+them: the export dimensions, the reconstructed values and the list payload
+number in section 3, and the content-addressing paragraph in 2.6.
+
+---
+
 ## Summary Page
 
 **Title**
@@ -165,8 +184,13 @@ the gesture, so the plate never jumps; positions snap to eight anchors within a
 screen-pixel threshold, and arrow keys nudge by one percent, or five with Shift.
 
 Three presets change arrangement rather than content: a bottom plate, a compact
-corner block, and a single-line strip. Each carries its own default position and
-type scale, and switching preset preserves the enabled field list.
+corner block, and a single-line strip. Each carries its own default position,
+type scale and base corner radius, and switching preset preserves the enabled
+field list. Two plate properties are user preferences rather than preset
+properties: a radius multiplier from 0 to 1.5 applied over the preset's base, and
+a choice between the sans and mono faces. Both survive a preset switch, are
+stored with the gallery, and are honoured by the share page because it hands the
+stored config to the same renderer.
 
 ### 2.6 Export and share parity
 
@@ -234,6 +258,11 @@ Measured results from the finished build:
   each, and each list row costs roughly 145 bytes of JSON because it carries a
   path rather than an image, so a full list stays a few kilobytes regardless of
   how large the photographs are.
+- Corner radius is a multiplier over each preset's own radius, so 0 draws a
+  square plate and 1.5 a very round one, and switching typeface re-measures the
+  plate: 563 pixels wide in the mono face against 524 in the sans face, recentred
+  on the same point. Both values travel in the stored config, and a record saved
+  as a square sans plate renders the same way when its share link is opened.
 - Every control in the editor is reachable by keyboard with a visible focus ring,
   including the recent rows and the map dialog, and Escape closes the export
   menu, the share popover and the map overlay while returning focus to the
@@ -249,8 +278,9 @@ Captions are written to state the claim, not to describe the interface. Place ea
 one directly under its image. File names refer to `docs/screenshots/`.
 
 Figure 1. The editor after a photograph is loaded. The left column lists the
-fields read from the file and the context reconstructed for it, and the canvas
-shows the composition that will be exported. (`01-editor-exif.jpg`)
+fields read from the file and the context reconstructed for it, the Style group
+below them carries the preset, tone, accent, type and plate controls, and the
+canvas shows the composition that will be exported. (`01-editor-exif.jpg`)
 
 Figure 2. The reconstructed fields with their values. The small information
 control on each row names the service that produced it. The peaks row shows the
@@ -261,9 +291,10 @@ Figure 3. The same panel for a photograph that passed through a messaging
 application. Its metadata was stripped, so every row reports what is missing
 rather than disappearing. (`03-degraded.png`)
 
-Figure 4. One photograph with the three overlay presets: plate along the bottom,
-corner block, and strip. Presets change arrangement only; the enabled fields are
-identical in all three. (`04-presets.jpg`)
+Figure 4. One photograph with the three overlay presets, all at the default
+corner radius and in the mono face: plate along the bottom, corner block, and
+strip. Presets change arrangement only; the enabled fields are identical in all
+three. (`04-presets.jpg`)
 
 Figure 5. The map overlay opened from the coordinates row. The pin marks the
 location used for reconstruction, and the readout shows the coordinates and the
@@ -294,7 +325,12 @@ port can save or delete a gallery. Uploads are limited to JPEG and PNG, so HEIC
 files from an iPhone must be converted first, which the camera settings can do.
 The peaks field depends on a public volunteer-run service and therefore degrades
 to a message whenever all mirrors are saturated, although results are cached for a
-day. Saved galleries can be deleted but not edited; sharing identical content returns
-the existing link, while any change creates a new record. The overlay is capped at 4096 pixels on the long edge, which is above
-every phone photograph used during development but would downscale a very large
-scanned image.
+day. Saved galleries can be deleted but not edited; sharing identical content
+returns the existing link, while any change creates a new record, including a
+change of corner radius or typeface. Type is self-hosted, so no font is fetched
+from a third party, but the editor still loads Leaflet from a content delivery
+network for the map overlay, so the app is not offline in the strict sense. A
+gallery saved before the plate properties existed mints one duplicate record the
+first time it is shared again, because the fingerprint changed. The overlay is
+capped at 4096 pixels on the long edge, which is above every phone photograph
+used during development but would downscale a very large scanned image.
