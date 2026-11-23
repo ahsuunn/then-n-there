@@ -16,8 +16,8 @@ the ones in the exported PDF.
 | 1 | 2.5 Overlay layout | the preset paragraph now names the base corner radius and the two plate preferences |
 | 2 | 3 Results | one new bullet about the radius multiplier and the typeface switch, with measured widths |
 | 3 | 3.1 Limitation | the share sentence is corrected, and three limits are added: Leaflet still loads from a CDN, a radius or typeface change counts as new content, and an old gallery mints one duplicate record |
-| 4 | Figures | caption 1 mentions the Style controls, caption 4 says which radius and face the three presets are drawn in |
-| 5 | Figures 1 to 8 | re-shoot against the current build; figure 9 is unaffected |
+| 4 | Figures | caption 1 mentions the Style controls, caption 2 now quotes the resolved peak instead of a failure, caption 4 says which radius and face the presets are drawn in, and 7 to 9 are renumbered to match the PDF (share, mobile, database) |
+| 5 | Figures 1 to 8 | re-shot against the current build in `docs/screenshots/`; the SQLite figure stays yours |
 
 Four earlier corrections are also still waiting if the PDF was exported before
 them: the export dimensions, the reconstructed values and the list payload
@@ -283,9 +283,9 @@ below them carries the preset, tone, accent, type and plate controls, and the
 canvas shows the composition that will be exported. (`01-editor-exif.jpg`)
 
 Figure 2. The reconstructed fields with their values. The small information
-control on each row names the service that produced it. The peaks row shows the
-degradation path: the volunteer-run map service was saturated, so the row states
-a reason instead of a value. (`02-derived.png`)
+control on each row names the service that produced it. The peaks row reads the
+nearest named summits from a volunteer-run map database, here Namsan at 1.8 km
+with two more behind the count. (`02-derived.png`)
 
 Figure 3. The same panel for a photograph that passed through a messaging
 application. Its metadata was stripped, so every row reports what is missing
@@ -301,22 +301,30 @@ location used for reconstruction, and the readout shows the coordinates and the
 resolved place name. Dragging the pin or clicking the map updates both.
 (`05-map.jpg`)
 
-Figure 6. The exported file at full resolution, 4080 by 3060 pixels. The amber
-box marks the region enlarged in Figure 7, so the two figures are read together.
-(`06-export.jpg`)
+Figure 6. The exported file at full resolution, 4080 by 3060 pixels, opened in an
+image viewer. The overlay is drawn at the photograph's own size rather than
+scaled up from the preview. (`06-export.jpg`)
 
-Figure 7. That region at 1 to 1 scale, one image pixel per screen pixel, or what
-an image viewer calls 100 percent. Only part of a 4080 pixel wide file fits on a
-page at this scale, which is why the figure is a crop of the overlay rather than
-the whole photograph. It shows that the overlay was drawn at the file's own
-resolution instead of being enlarged from the on-screen preview. (`06-export-100.jpg`)
-
-Figure 8. The share page for a saved gallery, opened in a separate tab. It
+Figure 7. The share page for a saved gallery, opened in a separate tab. It
 renders the same overlay from the stored context and offers a download.
 (`07-share.jpg`)
 
-Figure 9. The editor at 380 pixels wide. The sidebar becomes a bottom sheet and
+Figure 8. The editor at 380 pixels wide. The sidebar becomes a bottom sheet and
 the canvas keeps the photograph's aspect ratio. (`08-mobile.jpg`)
+
+Figure 9. The SQLite table that backs all of it, read with `sqlite3 data/app.db`.
+Each row is one gallery: a slug, the stored overlay configuration, the resolved
+context as JSON, and paths to the image and its thumbnail, never the bytes
+themselves. (your own capture)
+
+**Not numbered: the 1 to 1 crop.** `06-export-100.jpg` is the same export shown
+at one image pixel per screen pixel, which is what an image viewer calls 100
+percent. A 4080 pixel wide file is several times wider than a page, so the crop
+can only show a region, which is why it looks like the overlay with photo around
+it rather than a whole picture. It exists for one claim only: that the overlay
+text is drawn at the file's own resolution and not enlarged from the preview,
+which is invisible in Figure 6 because any downscaled image looks sharp. If you
+do not want to make that claim, leave the crop out; nothing else depends on it.
 
 ### Limitations
 
