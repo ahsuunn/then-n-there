@@ -126,6 +126,11 @@ export function layoutHUD(ctx, image, fields, config = {}) {
   // The radius is a multiplier on the preset's own radius, never an absolute:
   // a preset keeps its character and the value stays resolution independent.
   const radiusScale = clampNumber(config.radiusScale, 0, 1.5, 1);
+  // The typeface is a family choice, not a size change, so it has to reach the
+  // measurement: a layout measured with one face and drawn with another would
+  // put the text outside its own plate.
+  const plateFont = config.plateFont === 'sans' ? 'sans' : 'mono';
+  const family = HUD_FONTS[plateFont];
   const base = baseUnit(frame) * fontScale;
 
   // Measure at the base size, then shrink until the plate fits the frame. A
@@ -137,7 +142,7 @@ export function layoutHUD(ctx, image, fields, config = {}) {
     rows,
     unit,
     frame.w * preset.maxWidth,
-    HUD_FONTS.mono
+    family
   );
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const limitW = frame.w * preset.maxWidth;
@@ -146,7 +151,7 @@ export function layoutHUD(ctx, image, fields, config = {}) {
     const factor = Math.min(limitW / metrics.boxW, limitH / metrics.boxH);
     if (!(factor < 1) || unit * factor < 6) break;
     unit = Math.max(6, unit * factor);
-    metrics = measure(ctx, preset, rows, unit, limitW, HUD_FONTS.mono);
+    metrics = measure(ctx, preset, rows, unit, limitW, family);
   }
 
   const { boxW, boxH } = metrics;
@@ -178,6 +183,7 @@ export function layoutHUD(ctx, image, fields, config = {}) {
     unit,
     radius: unit * preset.radius * radiusScale,
     radiusScale,
+    plateFont,
     rows,
     metrics,
     // The position the renderer actually used after clamping. The editor
