@@ -133,6 +133,8 @@ const styleInputs = {
   accentText: null,
   fontScale: null,
   fontScaleText: null,
+  radiusScale: null,
+  radiusScaleText: null,
   opacity: null,
   opacityText: null,
   position: null,
@@ -745,6 +747,23 @@ function renderStyleGroup() {
   styleInputs.fontScaleText = fontScale.readout;
   frag.appendChild(fontScale.row);
 
+  const radiusScale = rangeRow({
+    id: 'radiusScale',
+    label: 'Corner radius',
+    min: 0,
+    max: 1.5,
+    step: 0.05,
+    value: state.hud.radiusScale,
+    format: radiusScaleLabel,
+    onInput(value) {
+      state.hud.radiusScale = value;
+      renderCanvas();
+    },
+  });
+  styleInputs.radiusScale = radiusScale.input;
+  styleInputs.radiusScaleText = radiusScale.readout;
+  frag.appendChild(radiusScale.row);
+
   const opacity = rangeRow({
     id: 'opacity',
     label: 'Opacity',
@@ -896,6 +915,11 @@ function positionText() {
   return `${Math.round(state.hud.x * 100)}% · ${Math.round(state.hud.y * 100)}%`;
 }
 
+// "0.00x" is accurate but says nothing about the result, so zero reads Square.
+function radiusScaleLabel(value) {
+  return value === 0 ? 'Square' : `${value.toFixed(2)}x`;
+}
+
 function setPreset(id) {
   if (!HUD_PRESETS.includes(id)) return;
 
@@ -947,6 +971,14 @@ function syncStyleControls() {
   }
   if (styleInputs.fontScaleText) {
     styleInputs.fontScaleText.textContent = `${state.hud.fontScale.toFixed(2)}x`;
+  }
+  if (styleInputs.radiusScale) {
+    styleInputs.radiusScale.value = String(state.hud.radiusScale);
+  }
+  if (styleInputs.radiusScaleText) {
+    styleInputs.radiusScaleText.textContent = radiusScaleLabel(
+      state.hud.radiusScale
+    );
   }
   if (styleInputs.opacity) styleInputs.opacity.value = String(state.hud.opacity);
   if (styleInputs.opacityText) {
@@ -1460,6 +1492,9 @@ function applyHudConfig(config) {
     : DEFAULT_ACCENT;
   state.hud.fontScale = numberIn(config.fontScale, 0.7, 2, defaults.fontScale);
   state.hud.opacity = numberIn(config.opacity, 0.2, 1, 1);
+  // The radius multiplier is a user preference like accent and opacity: a
+  // preset switch must keep it, so it is never reset there.
+  state.hud.radiusScale = numberIn(config.radiusScale, 0, 1.5, 1);
   state.hud.align = HUD_ALIGNMENTS.includes(config.align)
     ? config.align
     : defaults.align;
@@ -1620,6 +1655,7 @@ async function share() {
         accent: state.hud.accent,
         fontScale: state.hud.fontScale,
         opacity: state.hud.opacity,
+        radiusScale: state.hud.radiusScale,
         align: state.hud.align,
         fields: state.hud.fields,
       },
@@ -1695,6 +1731,7 @@ function canonicalHud(hud) {
     accent: String(hud.accent ?? '').toLowerCase(),
     fontScale: round(hud.fontScale),
     opacity: round(hud.opacity),
+    radiusScale: round(hud.radiusScale ?? 1),
     align: hud.align ?? null,
     fields: Array.isArray(hud.fields) ? [...hud.fields].sort() : [],
   };

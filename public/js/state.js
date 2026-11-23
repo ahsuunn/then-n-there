@@ -17,6 +17,7 @@ export const state = {
     tone: 'dark',
     accent: '#f0a75c',
     opacity: 1,
+    radiusScale: 1,
     moved: false,
     plateVisible: true,
     fields: [],
