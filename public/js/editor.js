@@ -741,8 +741,8 @@ function renderStyleGroup() {
   const fontScale = rangeRow({
     id: 'fontScale',
     label: 'Font scale',
-    min: 0.7,
-    max: 2,
+    min: 0.5,
+    max: 2.5,
     step: 0.05,
     value: state.hud.fontScale,
     format: (value) => `${value.toFixed(2)}x`,
@@ -1564,7 +1564,7 @@ function applyHudConfig(config) {
     ? config.accent
     : DEFAULT_ACCENT;
   state.hud.accentRule = config.accentRule !== false;
-  state.hud.fontScale = numberIn(config.fontScale, 0.7, 2, defaults.fontScale);
+  state.hud.fontScale = numberIn(config.fontScale, 0.5, 2.5, defaults.fontScale);
   state.hud.opacity = numberIn(config.opacity, 0.2, 1, 1);
   // The radius multiplier and the typeface are user preferences like accent
   // and opacity: a preset switch must keep them, so they are never reset there.
