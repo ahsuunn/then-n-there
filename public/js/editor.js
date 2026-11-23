@@ -1634,6 +1634,13 @@ async function share() {
     const form = new FormData();
     form.append('image', state.image.file);
     form.append('payload', JSON.stringify(payload));
+
+    // Same photo, same overlay, same link. The server answers 200 with the
+    // existing record when the fingerprint matches, so pressing Share twice
+    // does not duplicate the gallery or write a second copy of the photo.
+    const fingerprint = await contentFingerprint(payload.hudConfig);
+    if (fingerprint) form.append('fingerprint', fingerprint);
+
     const res = await fetch('/api/galleries', { method: 'POST', body: form });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error((data && data.error) || 'Upload failed');
@@ -1645,6 +1652,44 @@ async function share() {
     setBusy(els.shareButton, false);
     restoreIfLost(els.shareButton);
   }
+}
+
+// Fingerprint of what is being shared: the photo bytes followed by the canonical
+// overlay configuration. Positions are rounded, so float noise from a drag
+// cannot mint a new link for a composition nobody changed.
+async function contentFingerprint(hudConfig) {
+  if (!state.image || !globalThis.crypto || !crypto.subtle) return null;
+  try {
+    const bytes = new Uint8Array(await state.image.file.arrayBuffer());
+    const config = new TextEncoder().encode(
+      JSON.stringify(canonicalHud(hudConfig))
+    );
+    const combined = new Uint8Array(bytes.length + config.length);
+    combined.set(bytes, 0);
+    combined.set(config, bytes.length);
+    const digest = await crypto.subtle.digest('SHA-256', combined);
+    return [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  } catch {
+    return null;
+  }
+}
+
+function canonicalHud(hud) {
+  const round = (value) =>
+    Number.isFinite(value) ? Math.round(value * 10000) / 10000 : 0;
+  return {
+    preset: hud.preset ?? null,
+    x: round(hud.x),
+    y: round(hud.y),
+    tone: hud.tone ?? null,
+    accent: String(hud.accent ?? '').toLowerCase(),
+    fontScale: round(hud.fontScale),
+    opacity: round(hud.opacity),
+    align: hud.align ?? null,
+    fields: Array.isArray(hud.fields) ? [...hud.fields].sort() : [],
+  };
 }
 
 // A share can fail because the server rejected the file, because the network is
