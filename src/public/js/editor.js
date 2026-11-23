@@ -381,9 +381,15 @@ function openLocationMap() {
 
   const exif = state.exif || {};
   const placeField = state.fields.find((field) => field.id === 'place');
+  // A demo photograph can carry an empty GPS block, and a reopened gallery has
+  // only the stored pin. Fall back to the snapshot so the map opens where the
+  // photo was placed rather than in the middle of the ocean.
+  const stored = state.context && state.context.coords;
+  const latitude = Number.isFinite(exif.latitude) ? exif.latitude : stored && stored.lat;
+  const longitude = Number.isFinite(exif.longitude) ? exif.longitude : stored && stored.lon;
   mapHandle = openMapOverlay({
-    latitude: exif.latitude,
-    longitude: exif.longitude,
+    latitude,
+    longitude,
     place: placeField && placeField.available ? placeField.value : null,
     onChange: applyMapPoint,
     onClose() {
@@ -1549,6 +1555,14 @@ function normalizeSnapshot(raw) {
     peaks: Array.isArray(c.peaks) ? c.peaks : null,
     sun: c.sun ?? null,
     moon: c.moon ?? null,
+    // The pin the user corrected on the map lives here, not in the file, so a
+    // reopened gallery loses its location unless this survives the round trip.
+    coords:
+      c.coords &&
+      Number.isFinite(c.coords.lat) &&
+      Number.isFinite(c.coords.lon)
+        ? { lat: c.coords.lat, lon: c.coords.lon }
+        : null,
   };
 }
 
