@@ -16,6 +16,7 @@ export const state = {
     ...presetDefaults('plate'),
     tone: 'dark',
     accent: '#f0a75c',
+    accentRule: true,
     opacity: 1,
     radiusScale: 1,
     plateFont: 'mono',

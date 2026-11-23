@@ -131,6 +131,8 @@ const styleInputs = {
   tone: null,
   accent: null,
   accentText: null,
+  accentRule: null,
+  accentRuleText: null,
   fontScale: null,
   fontScaleText: null,
   radiusScale: null,
@@ -731,6 +733,11 @@ function renderStyleGroup() {
   styleInputs.accentText = accent.readout;
   frag.appendChild(accent.row);
 
+  const accentRule = accentRuleRow();
+  styleInputs.accentRule = accentRule.input;
+  styleInputs.accentRuleText = accentRule.readout;
+  frag.appendChild(accentRule.row);
+
   const fontScale = rangeRow({
     id: 'fontScale',
     label: 'Font scale',
@@ -894,6 +901,7 @@ function accentRow() {
   input.className = 'color-input';
   input.id = 'style-accent';
   input.value = state.hud.accent;
+  input.disabled = state.hud.accentRule === false;
   input.addEventListener('input', () => {
     state.hud.accent = input.value;
     readout.textContent = input.value;
@@ -901,6 +909,45 @@ function accentRow() {
   });
 
   row.append(name, readout, input);
+  return { row, input, readout };
+}
+
+function accentRuleRow() {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.dataset.id = 'accentRule';
+
+  const label = document.createElement('label');
+  label.className = 'row-main';
+  label.htmlFor = 'style-accent-rule';
+
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.className = 'switch';
+  input.id = 'style-accent-rule';
+  input.checked = state.hud.accentRule !== false;
+
+  const readout = document.createElement('span');
+  readout.className = 'row-value';
+
+  const paintReadout = () => {
+    readout.textContent = input.checked ? 'On' : 'Off';
+  };
+  paintReadout();
+
+  input.addEventListener('change', () => {
+    state.hud.accentRule = input.checked;
+    paintReadout();
+    syncStyleControls();
+    renderCanvas();
+  });
+
+  const name = document.createElement('span');
+  name.className = 'row-label';
+  name.textContent = 'Accent rule';
+
+  label.append(input, name);
+  row.append(label, readout);
   return { row, input, readout };
 }
 
@@ -979,9 +1026,17 @@ function syncStyleControls() {
   paintSegmented(styleInputs.preset, state.hud.preset);
   paintSegmented(styleInputs.tone, state.hud.tone);
 
-  if (styleInputs.accent) styleInputs.accent.value = state.hud.accent;
+  const showAccent = state.hud.accentRule !== false;
+  if (styleInputs.accent) {
+    styleInputs.accent.value = state.hud.accent;
+    styleInputs.accent.disabled = !showAccent;
+  }
   if (styleInputs.accentText) {
     styleInputs.accentText.textContent = state.hud.accent;
+  }
+  if (styleInputs.accentRule) styleInputs.accentRule.checked = showAccent;
+  if (styleInputs.accentRuleText) {
+    styleInputs.accentRuleText.textContent = showAccent ? 'On' : 'Off';
   }
   if (styleInputs.fontScale) {
     styleInputs.fontScale.value = String(state.hud.fontScale);
@@ -1508,6 +1563,7 @@ function applyHudConfig(config) {
   state.hud.accent = /^#[0-9a-f]{6}$/i.test(config.accent || '')
     ? config.accent
     : DEFAULT_ACCENT;
+  state.hud.accentRule = config.accentRule !== false;
   state.hud.fontScale = numberIn(config.fontScale, 0.7, 2, defaults.fontScale);
   state.hud.opacity = numberIn(config.opacity, 0.2, 1, 1);
   // The radius multiplier and the typeface are user preferences like accent
@@ -1672,6 +1728,7 @@ async function share() {
         y: state.hud.y,
         tone: state.hud.tone,
         accent: state.hud.accent,
+        accentRule: state.hud.accentRule,
         fontScale: state.hud.fontScale,
         opacity: state.hud.opacity,
         radiusScale: state.hud.radiusScale,
@@ -1749,6 +1806,7 @@ function canonicalHud(hud) {
     y: round(hud.y),
     tone: hud.tone ?? null,
     accent: String(hud.accent ?? '').toLowerCase(),
+    accentRule: hud.accentRule !== false,
     fontScale: round(hud.fontScale),
     opacity: round(hud.opacity),
     radiusScale: round(hud.radiusScale ?? 1),

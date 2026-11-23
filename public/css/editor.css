@@ -444,6 +444,11 @@
   outline-offset: 2px;
 }
 
+.color-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .row-action {
   flex: none;
   height: 28px;
