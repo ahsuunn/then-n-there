@@ -189,3 +189,29 @@ figures, and the figure table accounts for about five of those pages. That is no
 long for a report with a rubric row per figure. Compaction would cost evidence,
 not words: the only shortening worth doing is the Figure 9 row above. Leave the
 rest.
+
+---
+
+# Round three, after the duplicate galleries were removed
+
+The database now holds one gallery, saved at the pin the figures use, so the
+Recent list in the application shows a single item. Two documents of this:
+
+## 7. Say where the coordinates came from
+
+Without this, a reader compares the figures, which show coordinates, with their
+own run, where the same file reports no GPS and the pin must be placed by hand,
+and concludes the figures were staged. Add this as a bullet in section 3,
+directly after the reconstructed-values bullet:
+
+```
+The demonstration photograph carries a GPS block whose values are all NaN, so the location was set once with the map overlay and stored with the gallery; every location-derived field follows from that pin.
+```
+
+## 8. Figures 1 and 8 show a three-item Recent list
+
+Both were shot before the duplicates were removed, so they show Gyeongju, Seoul
+and Gyeongju while the application now shows one gallery. Nothing in the text
+refers to the list length, and the list is not what those figures are about, so
+leaving them is defensible. If you want them to match exactly, they are the only
+two figures that need re-shooting.
