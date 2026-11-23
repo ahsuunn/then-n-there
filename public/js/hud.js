@@ -123,6 +123,9 @@ export function layoutHUD(ctx, image, fields, config = {}) {
   const presetId = PRESETS[config.preset] ? config.preset : 'plate';
   const preset = PRESETS[presetId];
   const fontScale = clampNumber(config.fontScale, 0.5, 2.5, preset.fontScale);
+  // The radius is a multiplier on the preset's own radius, never an absolute:
+  // a preset keeps its character and the value stays resolution independent.
+  const radiusScale = clampNumber(config.radiusScale, 0, 1.5, 1);
   const base = baseUnit(frame) * fontScale;
 
   // Measure at the base size, then shrink until the plate fits the frame. A
@@ -173,6 +176,8 @@ export function layoutHUD(ctx, image, fields, config = {}) {
     frame: { w: frame.w, h: frame.h },
     rect: { x: left, y: top, w: boxW, h: boxH },
     unit,
+    radius: unit * preset.radius * radiusScale,
+    radiusScale,
     rows,
     metrics,
     // The position the renderer actually used after clamping. The editor
@@ -201,8 +206,9 @@ export function renderHUD(ctx, image, fields, config = {}) {
   ctx.textBaseline = 'middle';
 
   // Scrim and rule share one plate path, so the rule can never overhang a
-  // rounded corner. The clip is scoped: text must not be clipped.
-  const radius = unit * preset.radius;
+  // rounded corner. The clip is scoped: text must not be clipped. The radius
+  // comes from the layout, which applies the user's multiplier once.
+  const radius = layout.radius;
   ctx.fillStyle = palette.scrim;
   roundRectPath(ctx, rect.x, rect.y, rect.w, rect.h, radius);
   ctx.fill();
