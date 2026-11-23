@@ -43,6 +43,24 @@ if (!galleryColumns.some((column) => column.name === 'thumb_path')) {
   db.exec('ALTER TABLE galleries ADD COLUMN thumb_path TEXT');
 }
 
+// A gallery is identified by its content: the photo bytes plus the overlay
+// configuration. Re-sharing identical content returns the existing record
+// instead of minting a second link and a second copy of the photo.
+if (!galleryColumns.some((column) => column.name === 'fingerprint')) {
+  db.exec('ALTER TABLE galleries ADD COLUMN fingerprint TEXT');
+}
+db.exec(
+  'CREATE INDEX IF NOT EXISTS galleries_fingerprint ON galleries (fingerprint)'
+);
+
+export function findGalleryByFingerprint(fingerprint) {
+  if (!fingerprint) return null;
+  const row = db
+    .prepare('SELECT slug FROM galleries WHERE fingerprint = ? LIMIT 1')
+    .get(fingerprint);
+  return row ? getGallery(row.slug) : null;
+}
+
 export function slugExists(slug) {
   const row = db.prepare('SELECT 1 FROM galleries WHERE slug = ?').get(slug);
   return Boolean(row);
@@ -51,9 +69,9 @@ export function slugExists(slug) {
 export function insertGallery(record) {
   const stmt = db.prepare(`
     INSERT INTO galleries
-      (slug, created_at, image_path, image_width, image_height, hud_config, context, thumb_path)
+      (slug, created_at, image_path, image_width, image_height, hud_config, context, thumb_path, fingerprint)
     VALUES
-      (@slug, @createdAt, @imagePath, @imageWidth, @imageHeight, @hudConfig, @context, @thumbPath)
+      (@slug, @createdAt, @imagePath, @imageWidth, @imageHeight, @hudConfig, @context, @thumbPath, @fingerprint)
   `);
   stmt.run({
     slug: record.slug,
@@ -64,6 +82,7 @@ export function insertGallery(record) {
     hudConfig: JSON.stringify(record.hudConfig),
     context: JSON.stringify(record.context),
     thumbPath: record.thumbPath ?? null,
+    fingerprint: record.fingerprint ?? null,
   });
   return getGallery(record.slug);
 }
