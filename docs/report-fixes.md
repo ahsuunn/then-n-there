@@ -280,3 +280,29 @@ grader to see, and the result is already described with numbers in section 3.
 
 Re-export afterwards, and the zip needs rebuilding so the archive carries the
 new PDF.
+
+---
+
+# Round six: the figure 10 image and caption do not match
+
+The 16-page export has row 10 with the caption for the three-plate image but the
+image that was inserted is the Style panel (712 by 1270). The caption also opens
+with "those settings", which pointed at a panel figure that is not there.
+
+Since you kept one row, use the plate image with a caption that stands alone.
+
+**Image:** `docs/screenshots/10b-plate-customisation.jpg` (900 by 1176), the
+three stacked plate crops.
+
+**Replace row 10's caption with:**
+
+```
+The plate at three states of the customisation: corner radius 0, corner radius 1.5, and the default radius in the sans face. Both properties are stored with the gallery, so reopening it from Recent or opening its share link reproduces the same plate.
+```
+
+If you would rather keep the panel screenshot instead, then the caption has to
+describe the panel, not the plate states:
+
+```
+The Style panel, where the overlay is configured: preset, tone, accent colour and accent rule, font scale, typeface, corner radius, opacity, and the plate's normalised position. Radius and typeface are stored with the gallery, so a reopened gallery or its share link reproduces the same plate.
+```

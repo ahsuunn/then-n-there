@@ -326,9 +326,8 @@ tone, accent colour and accent rule, font scale, typeface, corner radius,
 opacity, and the plate's normalised position with a reset. The values shown are
 the ones used for the customised plate in Figure 10b. (`10-style-controls.png`)
 
-Figure 10b. The plate that those settings produce, at three states of the
-customisation: corner radius 0, corner radius 1.5, and the default radius in the
-sans face. Both properties are stored with the gallery, so reopening it from
+Figure 10b. The plate at three states of the customisation: corner radius 0,
+corner radius 1.5, and the default radius in the sans face. Both properties are stored with the gallery, so reopening it from
 Recent or opening its share link reproduces the same plate.
 (`10b-plate-customisation.jpg`)
 
