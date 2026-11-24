@@ -215,7 +215,7 @@ link that has been sent is never altered later, because nothing is overwritten.
 Every reconstructed value can be absent, so absence is treated as a first-class
 state rather than an error. Values are cached per rounded coordinate pair and hour
 for a day, failures resolve to null, and the registry turns null into a specific
-reason. The demonstration consequence is that the editor, the overlay, the
+reason. The practical consequence is that the editor, the overlay, the
 export, the map correction and every saved gallery keep working offline; only a
 first-time reconstruction needs the network.
 
@@ -243,19 +243,19 @@ seconds, and the overlay can be dragged, restyled, exported and shared.
 
 Measured results from the finished build:
 
-- An exported PNG of the 4080 by 3060 demonstration photograph is exactly 4080 by
+- An exported PNG of the 4080 by 3060 sample photograph is exactly 4080 by
   3060, and its pixels are identical to the editor preview for the same record,
   verified by hashing both canvases.
 - The share page renders the same overlay as the editor from the stored snapshot,
   with no network reconstruction. With both local and session storage emptied,
   the link still renders the identical canvas, so the page depends on the server
   record and nothing local.
-- Reconstructed values for the demonstration photograph, taken at Donggung
+- Reconstructed values for the sample photograph, taken at Donggung
   Palace and Wolji Pond in Gyeongju on 20 November 2026 at 21:11, resolved to the
   place name, 1.1 degrees Celsius with a clear sky, a ground elevation of 53
   metres, night with a solar azimuth of 280 degrees, and a waxing gibbous moon at
   80 percent illumination.
-- The demonstration photograph carries a GPS block whose values are all NaN,
+- The sample photograph carries a GPS block whose values are all NaN,
   so the location was set once with the map overlay and stored with the gallery;
   every location-derived field follows from that pin.
 - The recent gallery list serves 96 by 96 pixel thumbnails of about 3 kilobytes

@@ -215,3 +215,40 @@ and Gyeongju while the application now shows one gallery. Nothing in the text
 refers to the list length, and the list is not what those figures are about, so
 leaving them is defensible. If you want them to match exactly, they are the only
 two figures that need re-shooting.
+
+---
+
+# Round four, wording
+
+Two words to change. The first is a term I introduced and never defined, the
+second is simply the wrong word.
+
+## 9. "demonstration photograph" reads as if the photograph were a demo
+
+It means the one photograph used in every figure, the Gyeongju night shot. The
+assignment has no notion of a demonstration, so name it plainly.
+
+Replace "demonstration photograph" with "sample photograph" in these two bullets
+in section 3:
+
+```
+An exported PNG of the 4080 by 3060 sample photograph is exactly 4080 by 3060, ...
+Reconstructed values for the sample photograph, taken at Donggung Palace and
+Wolji Pond in Gyeongju on 20 November 2026 at 21:11, ...
+```
+
+## 10. "The demonstration consequence" is not English
+
+In section 2.7 it currently reads:
+
+```
+The demonstration consequence is that the editor, the overlay, the export, the
+map correction and every saved gallery keep working offline; ...
+```
+
+Replace "demonstration" with "practical":
+
+```
+The practical consequence is that the editor, the overlay, the export, the map
+correction and every saved gallery keep working offline; ...
+```
