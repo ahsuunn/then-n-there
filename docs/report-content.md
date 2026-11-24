@@ -321,10 +321,16 @@ Each row is one gallery: a slug, the stored overlay configuration, the resolved
 context as JSON, and paths to the image and its thumbnail, never the bytes
 themselves. (your own capture)
 
-Figure 10. The same plate three times: corner radius 0, corner radius 1.5, and
-the default radius in the sans face. The radius multiplier and the typeface are
-stored with the gallery, so reopening it from Recent or opening its share link
-reproduces the same plate. (`09-hud-customisation.jpg`)
+Figure 10. The Style panel, which is where the overlay is configured: preset,
+tone, accent colour and accent rule, font scale, typeface, corner radius,
+opacity, and the plate's normalised position with a reset. The values shown are
+the ones used for the customised plate in Figure 10b. (`10-style-controls.png`)
+
+Figure 10b. The plate that those settings produce, at three states of the
+customisation: corner radius 0, corner radius 1.5, and the default radius in the
+sans face. Both properties are stored with the gallery, so reopening it from
+Recent or opening its share link reproduces the same plate.
+(`10b-plate-customisation.jpg`)
 
 **Not numbered: the 1 to 1 crop.** `06-export-100.jpg` is the same export shown
 at one image pixel per screen pixel, which is what an image viewer calls 100

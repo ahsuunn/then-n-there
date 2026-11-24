@@ -255,21 +255,28 @@ correction and every saved gallery keep working offline; ...
 
 ---
 
-# Round five: one figure for the plate customisation
+# Round five: a figure for the customisation controls
 
-The text already covers it in 2.5 and in the Results bullet, but nothing shows
-it. Add a tenth row at the end of the figure table, after the SQLite row, so no
-existing figure renumbers.
+The text covers customisation in 2.5 and in the Results bullet, but nothing shows
+the panel. Add two rows at the end of the figure table, after the SQLite row, so
+no existing figure renumbers.
 
-**Image:** `docs/screenshots/09-hud-customisation.jpg` (900 by 1176). Three
-crops of the same plate, stacked: square, very round, then default radius in the
-sans face.
-
-**Row: 10. Paste this as the description:**
+**Row 10, the controls.** Image `docs/screenshots/10-style-controls.png`
+(712 by 1270), the Style panel with every control visible. Description:
 
 ```
-The same plate three times: corner radius 0, corner radius 1.5, and the default radius in the sans face. The radius multiplier and the typeface are stored with the gallery, so reopening it from Recent or opening its share link reproduces the same plate.
+The Style panel, which is where the overlay is configured: preset, tone, accent colour and accent rule, font scale, typeface, corner radius, opacity, and the plate's normalised position with a reset. The values shown are the ones used for the customised plate in Figure 10b.
 ```
 
-Nothing else in the document changes. Re-export, and the zip needs rebuilding so
-the archive carries the new PDF.
+**Row 10b, the result.** Image `docs/screenshots/10b-plate-customisation.jpg`
+(900 by 1176), three plate crops stacked. Description:
+
+```
+The plate that those settings produce, at three states of the customisation: corner radius 0, corner radius 1.5, and the default radius in the sans face. Both properties are stored with the gallery, so reopening it from Recent or opening its share link reproduces the same plate.
+```
+
+If you only want one row, keep row 10: the controls are what you asked the
+grader to see, and the result is already described with numbers in section 3.
+
+Re-export afterwards, and the zip needs rebuilding so the archive carries the
+new PDF.
