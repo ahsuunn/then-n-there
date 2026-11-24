@@ -252,3 +252,24 @@ Replace "demonstration" with "practical":
 The practical consequence is that the editor, the overlay, the export, the map
 correction and every saved gallery keep working offline; ...
 ```
+
+---
+
+# Round five: one figure for the plate customisation
+
+The text already covers it in 2.5 and in the Results bullet, but nothing shows
+it. Add a tenth row at the end of the figure table, after the SQLite row, so no
+existing figure renumbers.
+
+**Image:** `docs/screenshots/09-hud-customisation.jpg` (900 by 1176). Three
+crops of the same plate, stacked: square, very round, then default radius in the
+sans face.
+
+**Row: 10. Paste this as the description:**
+
+```
+The same plate three times: corner radius 0, corner radius 1.5, and the default radius in the sans face. The radius multiplier and the typeface are stored with the gallery, so reopening it from Recent or opening its share link reproduces the same plate.
+```
+
+Nothing else in the document changes. Re-export, and the zip needs rebuilding so
+the archive carries the new PDF.

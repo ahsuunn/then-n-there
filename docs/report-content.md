@@ -321,6 +321,11 @@ Each row is one gallery: a slug, the stored overlay configuration, the resolved
 context as JSON, and paths to the image and its thumbnail, never the bytes
 themselves. (your own capture)
 
+Figure 10. The same plate three times: corner radius 0, corner radius 1.5, and
+the default radius in the sans face. The radius multiplier and the typeface are
+stored with the gallery, so reopening it from Recent or opening its share link
+reproduces the same plate. (`09-hud-customisation.jpg`)
+
 **Not numbered: the 1 to 1 crop.** `06-export-100.jpg` is the same export shown
 at one image pixel per screen pixel, which is what an image viewer calls 100
 percent. A 4080 pixel wide file is several times wider than a page, so the crop
